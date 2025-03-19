@@ -1,0 +1,23 @@
+{
+  "name": "ben-training-data",
+  "version": "1.0.0",
+  "description": "Collect and upload RAG data to the AI database",
+  "main": "upload-data.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/christroutner/ben-training-data.git"
+  },
+  "author": "Chris Troutner <chris.troutner@gmail.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/christroutner/ben-training-data/issues"
+  },
+  "homepage": "https://github.com/christroutner/ben-training-data#readme",
+  "dependencies": {
+    "axios": "1.7.9"
+  }
+}
