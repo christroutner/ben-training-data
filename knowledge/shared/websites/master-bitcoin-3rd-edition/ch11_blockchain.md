@@ -1,9 +1,8 @@
-[[blockchain]]
-== The Blockchain
+## The Blockchain
 
 The ((("blockchain", "explained", id="blockchain-explain")))blockchain is the history of every confirmed Bitcoin transaction.
-It's what allows every full node to independently determine what keys and
-scripts control which bitcoins.  In this chapter, we'll look at the
+It’s what allows every full node to independently determine what keys and
+scripts control which bitcoins.  In this chapter, we’ll look at the
 structure of the blockchain and see how it uses cryptographic
 commitments and other clever tricks to make every part of it easy for
 full nodes (and sometimes lightweight clients) to validate.
@@ -32,20 +31,20 @@ Although a block has just one parent, it can have ((("child blocks")))multiple
 children. Each of the children commits to the same parent block.
 Multiple children arise during a blockchain "fork," a temporary
 situation that can occur when different blocks are discovered almost
-simultaneously by different miners (see <<forks>>). Eventually only one
+simultaneously by different miners (see [forks](#forks)). Eventually only one
 child block becomes part of the blockchain accepted by all full nodes, and the "fork" is resolved.
 
 The "previous block hash" field is inside the block header and thereby
-affects the _current_ block's hash.
+affects the _current_ block’s hash.
 Any change to a parent block
-requires a child block's hash to change, which requires a change in the
+requires a child block’s hash to change, which requires a change in the
 pointer of the grandchild, which in turn changes the grandchild, and so
 on. This sequence ensures that, once a block has many generations
 following it, it cannot be changed without forcing a recalculation of
 all subsequent blocks. Because such a recalculation would require
 enormous computation (and therefore energy consumption), the existence
-of a long chain of blocks makes the blockchain's deep history impractical to change,
-which is a key feature of Bitcoin's security.
+of a long chain of blocks makes the blockchain’s deep history impractical to change,
+which is a key feature of Bitcoin’s security.
 
 One way to think about the blockchain is like layers in a geological
 formation, or glacier core sample. The surface layers might change with
@@ -66,7 +65,7 @@ the possibility of any block being reversed always exists, the
 probability of such an event decreases as time passes until it ((("blockchain", "explained", startref="blockchain-explain")))becomes
 infinitesimal.
 
-=== Structure of a Block
+### Structure of a Block
 
 A block ((("blocks", "structure of")))is a container data structure that aggregates
 transactions for inclusion in the blockchain. The
@@ -75,9 +74,8 @@ of transactions that make up the bulk of its size. The block header is
 80 bytes, whereas the total size of all transactions in a block can be
 up to about 4,000,000 bytes.  A complete block,
 with all transactions, can therefore be almost 50,000 times larger than the block
-header. <<block_structure1>> describes how Bitcoin Core stores the structure of a block.
+header. [block_structure1](#block_structure1) describes how Bitcoin Core stores the structure of a block.
 
-++++
 <table id="block_structure1">
 <caption>The structure of a block</caption>
 <thead>
@@ -110,16 +108,12 @@ header. <<block_structure1>> describes how Bitcoin Core stores the structure of 
 </tr>
 </tbody>
 </table>
-++++
 
-
-[[block_header]]
-=== Block Header
+### Block Header
 
 The ((("blocks", "block header")))((("block header")))block header consists of
-block metadata as shown in <<block_header_structure_ch09>>.
+block metadata as shown in [block_header_structure_ch09](#block_header_structure_ch09).
 
-++++
 <table id="block_header_structure_ch09">
 <caption>The structure of the block header</caption>
 <thead>
@@ -162,37 +156,35 @@ block metadata as shown in <<block_header_structure_ch09>>.
 </tr>
 </tbody>
 </table>
-++++
 
 The nonce, target, and timestamp are used in the mining
-process and will be discussed in more detail in <<mining>>.
+process and will be discussed in more detail in [mining](#mining).
 
-[[block_hash]]
-=== Block Identifiers: Block Header Hash and Block Height
+### Block Identifiers: Block Header Hash and Block Height
 
 The ((("blocks", "identifiers", id="block-identify")))((("block header hash", id="block-header-hash")))((("block height", id="block-height")))primary identifier of a block
 is its cryptographic hash, a commitment made by hashing the
 block header twice through the SHA256 algorithm. The resulting 32-byte
 hash is called the _block hash_ but is more accurately the _block header
-hash_, pass:[<span class="keep-together">because only the block header is
-used to compute it. For example,</span>]
+hash_, pass:[&lt;span class="keep-together">because only the block header is
+used to compute it. For example,&lt;/span>]
 +000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f+ is
-the block hash of the first block on Bitcoin's blockchain. The block hash
+the block hash of the first block on Bitcoin’s blockchain. The block hash
 identifies a block uniquely and unambiguously and can be independently
 derived by any node by simply hashing the block header.
 
-Note that the block hash is not actually included inside the block's
+Note that the block hash is not actually included inside the block’s
 data structure.
-Instead, the block's hash is computed by each node as the
+Instead, the block’s hash is computed by each node as the
 block is received from the network. The block hash might be stored in a
-separate database table as part of the block's metadata, to facilitate
+separate database table as part of the block’s metadata, to facilitate
 indexing and faster retrieval of blocks from disk.
 
 A second way to identify a block is by its position in the blockchain,
-called the pass:[<span class="keep-together"><em>block height</em>. The
-genesis block is at block height 0 (zero) and is the</span>]
-pass:[<span class="keep-together">same block that was previously
-referenced by the following block hash</span>]
+called the pass:[&lt;span class="keep-together">&lt;em>block height&lt;/em>. The
+genesis block is at block height 0 (zero) and is the&lt;/span>]
+pass:[&lt;span class="keep-together">same block that was previously
+referenced by the following block hash&lt;/span>]
 +000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f+. A
 block can thus be identified in two ways: by referencing the block hash
 or by referencing the block height. Each subsequent block added "on top"
@@ -207,27 +199,27 @@ Although a single block will always have a specific and invariant block
 height, the reverse is not true—the block height does not always
 identify a single block. Two or more blocks might have the same block
 height, competing for the same position in the blockchain. This scenario
-is discussed in detail in the section <<forks>>.  In early blocks, the block height was
-also not a part of the block's data structure; it was not stored within
-the block. Each node dynamically identified a block's position (height)
+is discussed in detail in the section [forks](#forks).  In early blocks, the block height was
+also not a part of the block’s data structure; it was not stored within
+the block. Each node dynamically identified a block’s position (height)
 in the blockchain when it was received from the Bitcoin network.  A
 later protocol change (BIP34) began including the block height in the
 coinbase transaction, although its purpose was to ensure each block had
 a different coinbase transaction.  Nodes still need to dynamically
-identify a block's height in order to validate the coinbase field.  The
+identify a block’s height in order to validate the coinbase field.  The
 block height might also be stored as metadata in an indexed database
 table for faster retrieval.
 
-[TIP]
-====
-A block's _block hash_ always identifies a single block uniquely. A
+<dl><dt><strong>💡 TIP</strong></dt><dd>
+
+A block’s _block hash_ always identifies a single block uniquely. A
 block also always has a specific _block height_. However, it is not
 always the case that a specific block height identifies a single
 block. Rather, two or more blocks might compete for a single position((("blocks", "identifiers", startref="block-identify")))((("block header hash", startref="block-header-hash")))((("block height", startref="block-height"))) in
 the blockchain.
-====
+</dd></dl>
 
-=== The Genesis Block
+### The Genesis Block
 
 The first block((("blockchain", "genesis block", id="blockchain-genesis")))((("genesis block", id="genesis-block")))((("Bitcoin Core", "genesis block", id="bitcoin-core-genesis"))) in the blockchain is called the _genesis block_
 and was created in 2009. It is the common ancestor of all the blocks in
@@ -237,37 +229,33 @@ chain backward in time, you will eventually arrive at the genesis block.
 Every node always starts with a blockchain of at least one block because
 the genesis block is statically encoded within Bitcoin Core,
 such that it cannot be altered. Every node always "knows" the
-genesis block's hash and structure, the fixed time it was created, and
+genesis block’s hash and structure, the fixed time it was created, and
 even the single transaction within. Thus, every node has the starting
 point for the blockchain, a secure "root" from which to build a trusted
 blockchain.
 
 See the statically encoded genesis block inside the Bitcoin Core client
-in https://oreil.ly/FqPW5[_chainparams.cpp_].
+in [_chainparams.cpp_](https://oreil.ly/FqPW5).
 
 The following identifier hash belongs to the genesis block:
 
-----
+```
 000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f
-----
+```
 
 You can search for that block hash in almost any block explorer website, such
 as _blockstream.info_, and you will find a page describing the contents
 of this block, with a URL containing that hash:
 
-[quote]
-____
-https://blockstream.info/block/000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f
-____
+> https://blockstream.info/block/000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f
 
 Alternatively, you can get the block using Bitcoin Core on the command line:
 
-----
+```
 $ bitcoin-cli getblock \
   000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f
-----
-[source,json]
-----
+```
+```json
 {
   "hash": "000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f",
   "confirmations": 790496,
@@ -290,7 +278,7 @@ $ bitcoin-cli getblock \
     "4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b"
   ]
 }
-----
+```
 
 The genesis block contains a message within it. The coinbase
 transaction input contains the text "The Times 03/Jan/2009 Chancellor on
@@ -298,11 +286,11 @@ brink of second bailout for banks." This message was intended to offer
 proof of the earliest date this block could have been created, by referencing the
 headline of the British newspaper _The Times_. It also serves as a
 tongue-in-cheek reminder of the importance of an independent monetary
-system, with Bitcoin's launch occurring at the same time as an
+system, with Bitcoin’s launch occurring at the same time as an
 unprecedented worldwide monetary crisis. The message was embedded in the
-first block by Satoshi Nakamoto, Bitcoin's ((("Nakamoto, Satoshi")))((("blockchain", "genesis block", startref="blockchain-genesis")))((("genesis block", startref="genesis-block")))((("Bitcoin Core", "genesis block", startref="bitcoin-core-genesis")))creator.
+first block by Satoshi Nakamoto, Bitcoin’s ((("Nakamoto, Satoshi")))((("blockchain", "genesis block", startref="blockchain-genesis")))((("genesis block", startref="genesis-block")))((("Bitcoin Core", "genesis block", startref="bitcoin-core-genesis")))creator.
 
-=== Linking Blocks in the Blockchain
+### Linking Blocks in the Blockchain
 
 Bitcoin((("blockchain", "linking blocks", id="blockchain-link")))((("blocks", "linking in blockchain", id="block-link")))((("linking blocks in blockchain", id="link-block"))) full nodes validate every
 block in the blockchain after the genesis block. Their local view of
@@ -312,20 +300,18 @@ it will validate these blocks and then link them to its view of the existing
 blockchain. To establish a link, a node will examine the incoming block
 header and look for the "previous block hash."
 
-[role="less_space pagebreak-before"]
-Let's assume, for example, that a node has 277,314 blocks in the local
+Let’s assume, for example, that a node has 277,314 blocks in the local
 copy of the blockchain. The last block the node knows about is block
 277,314, with a block header hash of:
 
-----
+```
 00000000000000027e7ba6fe7bad39faf3b5a83daed765f05f7d1b71a1632249
-----
+```
 
 The Bitcoin node then receives a new block from the network, which it
 parses as follows:
 
-[source,json]
-----
+```json
 {
     "size" : 43560,
     "version" : 2,
@@ -342,7 +328,7 @@ parses as follows:
         "05cfd38f6ae6aa83674cc99e4d75a1458c165b7ab84725eda41d018a09176634"
     ]
 }
-----
+```
 
 Looking at this new block, the node finds the +previousblockhash+ field,
 which contains the hash of its parent block. It is a hash known to the
@@ -350,15 +336,14 @@ node, that of the last block on the chain at height 277,314. Therefore,
 this new block is a child of the last block on the chain and extends the
 existing blockchain. The node adds this new block to the end of the
 chain, making the blockchain longer with a new height of 277,315.
-<<chain_of_blocks>> shows the chain of three blocks, linked by
+[Blocks linked in a chain by each referencing the previous block header hash.](#chain_of_blocks) shows the chain of three blocks, linked by
 references in((("blockchain", "linking blocks", startref="blockchain-link")))((("blocks", "linking in blockchain", startref="block-link")))((("linking blocks in blockchain", startref="link-block"))) the +previousblockhash+ field.
 
-[[chain_of_blocks]]
-.Blocks linked in a chain by each referencing the previous block header hash.
-image::images/mbc3_1101.png[]
+<a name="chain_of_blocks"></a>**Blocks linked in a chain by each referencing the previous block header hash.**
 
-[[merkle_trees]]
-=== Merkle Trees
+![mbc3_1101](images/mbc3_1101.png)
+
+### Merkle Trees
 
 Each block((("blockchain", "merkle trees", id="blockchain-merkle")))((("merkle trees", id="merkle-tree-explain"))) in the Bitcoin blockchain contains
 a summary of all the transactions in the block using a _merkle tree_.
@@ -378,7 +363,7 @@ transactions and permitting a very efficient process to verify whether a
 transaction is included in a block. A merkle tree is constructed by
 recursively hashing pairs of elements until there is only one hash, called
 the _root_, or _merkle root_. The cryptographic hash algorithm used in
-Bitcoin's merkle trees is SHA256 applied twice, also known as
+Bitcoin’s merkle trees is SHA256 applied twice, also known as
 double-SHA256.
 
 When N data elements are hashed and summarized in a merkle tree, you can
@@ -388,104 +373,91 @@ structure.
 
 The merkle tree is constructed bottom-up. In the following example, we
 start with four transactions, A, B, C, and D, which form the _leaves_ of
-the merkle tree, as shown in <<simple_merkle>>. The transactions are not
+the merkle tree, as shown in [Calculating the nodes in a merkle tree.](#simple_merkle). The transactions are not
 stored in the merkle tree; rather, their data is hashed and the
 resulting hash is stored in each leaf node as H~A~, H~B~, H~C~, and
 H~D~:
 
-++++
 <pre data-type="codelisting">
 H<sub>A</sub> = SHA256(SHA256(Transaction A))
 </pre>
-++++
 
 Consecutive pairs of leaf nodes are then summarized in a parent node by
 concatenating the two hashes and hashing them together. For example, to
 construct the parent node H~AB~, the two 32-byte hashes of the children
 are concatenated to create a 64-byte string. That string is then
-double-hashed to produce the parent node's hash:
+double-hashed to produce the parent node’s hash:
 
-++++
 <pre data-type="codelisting">
 H<sub>AB</sub> = SHA256(SHA256(H<sub>A</sub> || H<sub>B</sub>))
 </pre>
-++++
 
 The process continues until there is only one node at the top, the node
 known as the merkle root. That 32-byte hash is stored in the block
 header and summarizes all the data in all four transactions.
-<<simple_merkle>> shows how the root is calculated by pair-wise hashes
+[Calculating the nodes in a merkle tree.](#simple_merkle) shows how the root is calculated by pair-wise hashes
 of the nodes.
 
-[[simple_merkle]]
-.Calculating the nodes in a merkle tree.
-image::images/mbc3_1102.png["merkle_tree"]
+<a name="simple_merkle"></a>**Calculating the nodes in a merkle tree.**
+
+!["merkle_tree"](images/mbc3_1102.png)
 
 Because the merkle tree is a binary tree, it needs
 an even number of leaf nodes. If there are an odd number of transactions
 to summarize, the last transaction hash will be duplicated to create an
 even number of leaf nodes, also known ((("balanced merkle trees")))as a _balanced tree_. This is
-shown in <<merkle_tree_odd>>, where transaction C is duplicated.
+shown in [Duplicating one data element achieves an even number of data elements.](#merkle_tree_odd), where transaction C is duplicated.
 Similarly, if there are an odd number of hashes to process at any level,
 the last hash is duplicated.
 
-[[merkle_tree_odd]]
-.Duplicating one data element achieves an even number of data elements.
-image::images/mbc3_1103.png["merkle_tree_odd"]
+<a name="merkle_tree_odd"></a>**Duplicating one data element achieves an even number of data elements.**
 
-.A Design Flaw in Bitcoin's Merkle Tree
-****
-An extended comment in Bitcoin Core's source code, reproduced here with slight revisions, describes a
-significant problem in the design of Bitcoin's duplication of odd
+!["merkle_tree_odd"](images/mbc3_1103.png)
+
+**A Design Flaw in Bitcoin’s Merkle Tree**
+
+An extended comment in Bitcoin Core’s source code, reproduced here with slight revisions, describes a
+significant problem in the design of Bitcoin’s duplication of odd
 elements in its merkle tree:
 
+> WARNING! If you’re reading this because you’re learning about crypto
+> and/or designing a new system that will use merkle trees, keep in mind
+> that the following merkle tree algorithm has a serious flaw related to
+> duplicate txids, resulting in a vulnerability (CVE-2012-2459).
+>
+> The reason is that if the number of hashes in the list at a given level
+> is odd, the last one is duplicated before computing the next level (which
+> is unusual in merkle trees). This results in certain sequences of
+> transactions leading to the same merkle root. For example, the two
+> trees in [Two Bitcoin-style merkle trees with the same root but a different number of leaves.](#cve_tree):
+>
+> <a name="cve_tree"></a>**Two Bitcoin-style merkle trees with the same root but a different number of leaves.**
 
-____
-WARNING! If you're reading this because you're learning about crypto
-and/or designing a new system that will use merkle trees, keep in mind
-that the following merkle tree algorithm has a serious flaw related to
-duplicate txids, resulting in a vulnerability (CVE-2012-2459).
+> !["Two Bitcoin-style merkle trees with the same root but a different number of leaves"](images/mbc3_1104.png)
+>
+> The transaction lists [1,2,3,4,5,6] and [1,2,3,4,5,6,5,6] (where 5 and
+> 6 are repeated) result in the same root hash A (because the hash of both
+> of (F) and (F,F) is C).
+>
+> The vulnerability results from being able to send a block with such a
+> transaction list, with the same merkle root, and the same block hash as
+> the original without duplication, resulting in failed validation. If the
+> receiving node proceeds to mark that block as permanently invalid
+> however, it will fail to accept further unmodified (and thus potentially
+> valid) versions of the same block. We defend against this by detecting
+> the case where we would hash two identical hashes at the end of the list
+> together, and treating that identically to the block having an invalid
+> merkle root. Assuming no double-SHA256 collisions, this will detect all
+> known ways of changing the transactions without affecting the merkle
+> root.
+>
+> <p data-type="attribution">Bitcoin Core <em>src/consensus/merkle.cpp</em></p>
 
-The reason is that if the number of hashes in the list at a given level
-is odd, the last one is duplicated before computing the next level (which
-is unusual in merkle trees). This results in certain sequences of
-transactions leading to the same merkle root. For example, the two
-trees in <<cve_tree>>:
-
-[[cve_tree]]
-[role="width-90"]
-.Two Bitcoin-style merkle trees with the same root but a different number of leaves.
-image::images/mbc3_1104.png["Two Bitcoin-style merkle trees with the same root but a different number of leaves"]
-
-The transaction lists [1,2,3,4,5,6] and [1,2,3,4,5,6,5,6] (where 5 and
-6 are repeated) result in the same root hash A (because the hash of both
-of (F) and (F,F) is C).
-
-The vulnerability results from being able to send a block with such a
-transaction list, with the same merkle root, and the same block hash as
-the original without duplication, resulting in failed validation. If the
-receiving node proceeds to mark that block as permanently invalid
-however, it will fail to accept further unmodified (and thus potentially
-valid) versions of the same block. We defend against this by detecting
-the case where we would hash two identical hashes at the end of the list
-together, and treating that identically to the block having an invalid
-merkle root. Assuming no double-SHA256 collisions, this will detect all
-known ways of changing the transactions without affecting the merkle
-root.
-
-++++
-<p data-type="attribution">Bitcoin Core <em>src/consensus/merkle.cpp</em></p>
-++++
-____
-
-****
-
-[role="less_space pagebreak-before"]
 The same method for constructing a tree from four transactions can be
 generalized to construct trees of any size. In Bitcoin it is common to
 have several thousand transactions in a single
 block, which are summarized in exactly the same way, producing just 32
-bytes of data as the single merkle root. In <<merkle_tree_large>>, you
+bytes of data as the single merkle root. In [A merkle tree summarizing many data elements.](#merkle_tree_large), you
 will see a tree built from 16 transactions. Note that although the root
 looks bigger than the leaf nodes in the diagram, it is the exact same
 size, just 32 bytes. Whether there is one transaction or ten
@@ -503,11 +475,11 @@ slowly. This allows Bitcoin nodes to efficiently produce paths of 10 or
 transaction out of more than a thousand transactions in a multimegabyte
 block.
 
-[[merkle_tree_large]]
-.A merkle tree summarizing many data elements.
-image::images/mbc3_1105.png["merkle_tree_large"]
+<a name="merkle_tree_large"></a>**A merkle tree summarizing many data elements.**
 
-In <<merkle_tree_path>>, a node can prove that a transaction K is
+!["merkle_tree_large"](images/mbc3_1105.png)
+
+In [A merkle path used to prove inclusion of a data element.](#merkle_tree_path), a node can prove that a transaction K is
 included in the block by producing a merkle path that is only four
 32-byte hashes long (128 bytes total). The path consists of the four
 hashes (shown with a shaded background) H~L~,
@@ -518,9 +490,9 @@ by computing four additional pair-wise hashes H~KL~, H~IJKL~,
 H~IJKLMNOP~, and the merkle tree root (outlined in a dashed line in the
 diagram).
 
-[[merkle_tree_path]]
-.A merkle path used to prove inclusion of a data element.
-image::images/mbc3_1106.png["merkle_tree_path"]
+<a name="merkle_tree_path"></a>**A merkle path used to prove inclusion of a data element.**
+
+!["merkle_tree_path"](images/mbc3_1106.png)
 
 The efficiency of merkle trees becomes obvious as the scale increases.
 The largest possible block can hold almost 16,000 transactions in 4,000,000
@@ -530,9 +502,9 @@ of the 80-byte block header, and 448 bytes for the merkle proof.  That
 makes the largest possible proof almost 10,000 times smaller than the
 largest possible Bitcoin block.
 
-=== Merkle Trees and Lightweight Clients
+### Merkle Trees and Lightweight Clients
 
-Merkle trees are ((("Bitcoin network", "lightweight clients", "merkle trees and")))((("lightweight clients", "merkle trees and")))used extensively by lightweight clients. Lightweight clients don't
+Merkle trees are ((("Bitcoin network", "lightweight clients", "merkle trees and")))((("lightweight clients", "merkle trees and")))used extensively by lightweight clients. Lightweight clients don’t
 have all transactions and do not download full blocks, just block
 headers. In order to verify that a transaction is included in a block,
 without having to download all the transactions in the block, they use
@@ -540,7 +512,7 @@ a merkle path.
 
 Consider, for example, a lightweight client that is interested in incoming
 payments to an address contained in its wallet. The lightweight client will
-establish a bloom filter (see <<bloom_filters>>) on its connections to
+establish a bloom filter (see [bloom_filters](#bloom_filters)) on its connections to
 peers to limit the transactions received to only those containing
 addresses of interest. When a peer sees a transaction that matches the
 bloom filter, it will send that block using a +merkleblock+ message. The
@@ -556,7 +528,7 @@ have received less than a kilobyte of data for the block header and
 merkle path, an amount of data that is more than a thousand times less
 than a full block (about 2 MB ((("blockchain", "merkle trees", startref="blockchain-merkle")))((("merkle trees", startref="merkle-tree-explain")))currently).
 
-=== Bitcoin's Test Blockchains
+### Bitcoin's Test Blockchains
 
 You might be
 surprised to learn that there is more than one blockchain used with Bitcoin. The
@@ -564,9 +536,9 @@ surprised to learn that there is more than one blockchain used with Bitcoin. The
 January 3rd, 2009, the one with the genesis block we studied in this
 chapter, is ((("mainnet")))called _mainnet_.  There are other Bitcoin blockchains that
 are used for testing purposes: at this time _testnet_, _signet_, and
-_regtest_. Let's look at each in turn.
+_regtest_. Let’s look at each in turn.
 
-==== Testnet: Bitcoin's Testing Playground
+#### Testnet: Bitcoin's Testing Playground
 
 Testnet is ((("blockchain", "test blockchains", "testnet", id="blockchain-test-testnet")))((("test blockchains", "testnet", id="test-block-testnet")))((("testnet", id="testnet")))the name of the test blockchain, network, and currency that
 is used for testing purposes. The testnet is a fully featured live P2P
@@ -575,7 +547,7 @@ the other features of mainnet.  The most important difference is that
 testnet coins are meant to be worthless.
 
 Any software development that is intended for production use on
-Bitcoin's mainnet can first be tested on testnet with test coins.
+Bitcoin’s mainnet can first be tested on testnet with test coins.
 This protects both the developers from monetary losses due to bugs and
 the network from unintended behavior due to bugs.
 
@@ -586,43 +558,42 @@ previous testnet.  Testnet3 is a large blockchain, in excess of 30 GB in
 on your computer. Not as much as mainnet, but not exactly "lightweight"
 either.
 
-[TIP]
-====
-Testnet and the other test blockchains described in this book don't use
+<dl><dt><strong>💡 TIP</strong></dt><dd>
+
+Testnet and the other test blockchains described in this book don’t use
 the same address prefixes as mainnet addresses to prevent someone from
 accidentally sending real bitcoins to a test address.  Mainnet addresses
 begin with +1+, +3+, or +bc1+.  Addresses for the test networks
 mentioned in this book begin with +m+, +n+, or +tb1+.  Other test
 networks, or new protocols being developed on test networks, may use
 other address prefixes or alterations.
-====
+</dd></dl>
 
-===== Using testnet
+##### Using testnet
 
 Bitcoin Core, like((("Bitcoin Core", "testnet"))) many other Bitcoin programs, has full support
-for operation on testnet as an alternative mainnet. All of Bitcoin Core's
+for operation on testnet as an alternative mainnet. All of Bitcoin Core’s
 functions work on testnet, including the wallet, mining testnet coins,
 and syncing a full testnet node.
 
-[role="less_space pagebreak-before"]
 To start Bitcoin Core on testnet instead of mainnet you use the
 +testnet+ switch:
 
-----
+```
 $ bitcoind -testnet
-----
+```
 
 In the logs you should see that bitcoind is building a new blockchain in
 the +testnet3+ subdirectory of the default bitcoind directory:
 
-----
+```
 bitcoind: Using data directory /home/username/.bitcoin/testnet3
-----
+```
 
 To connect to bitcoind, you use the +bitcoin-cli+ command-line tool, but
 you must also switch it to testnet mode:
 
-----
+```
 $ bitcoin-cli -testnet getblockchaininfo
 {
   "chain": "test",
@@ -637,31 +608,31 @@ $ bitcoin-cli -testnet getblockchaininfo
   "softforks": [
 
   [...]
-----
+```
 
 You can also run on testnet3 with other full-node implementations, such
 as +btcd+ (written in Go) and +bcoin+ (written in JavaScript), to
 experiment and learn in other programming languages and frameworks.
 
 Testnet3 supports all the features of mainnet, including
-segregated witness v0 and v1 (see <<segwit>> and <<taproot>>). Therefore, testnet3 can also be
+segregated witness v0 and v1 (see [segwit](#segwit) and [taproot](#taproot)). Therefore, testnet3 can also be
 used to test segregated witness features.
 
-===== Problems with testnet
+##### Problems with testnet
 
-Testnet doesn't just use the same data structures as Bitcoin, it also
+Testnet doesn’t just use the same data structures as Bitcoin, it also
 uses almost exactly the same proof-of-work security mechanism as
 Bitcoin.  The notable differences for testnet are that its minimum
-difficulty is half that of Bitcoin and that it's allowed to include a
-block at the minimum difficulty if that block's timestamp is more than
+difficulty is half that of Bitcoin and that it’s allowed to include a
+block at the minimum difficulty if that block’s timestamp is more than
 20 minutes after the previous block.
 
-Unfortunately, Bitcoin's PoW security mechanism was designed to depend
-on economic incentives--incentives which don't exist in a test
+Unfortunately, Bitcoin’s PoW security mechanism was designed to depend
+on economic incentives--incentives which don’t exist in a test
 blockchain that is forbidden from having value.  On mainnet, miners are
 incentivized to include user transactions in their blocks because those
 transactions pay fees.  On testnet, transactions still contain something
-called fees, but those fees don't have any economic value.  That means
+called fees, but those fees don’t have any economic value.  That means
 the only incentive for a testnet miner to include transactions is
 because they want to help users and developers to test their software.
 
@@ -672,9 +643,9 @@ or not.  That means disruptive miners can create many blocks in a row on
 testnet without including any user transactions.  When those attacks
 happen, testnet becomes unusable for users and ((("blockchain", "test blockchains", "testnet", startref="blockchain-test-testnet")))((("test blockchains", "testnet", startref="test-block-testnet")))((("testnet", startref="testnet")))developers.
 
-==== Signet: The Proof of Authority Testnet
+#### Signet: The Proof of Authority Testnet
 
-There's no ((("blockchain", "test blockchains", "signet", id="blockchain-test-signet")))((("test blockchains", "signet", id="test-block-signet")))((("signet", id="signet")))known way for a system dependent on permissionless PoW to
+There’s no ((("blockchain", "test blockchains", "signet", id="blockchain-test-signet")))((("test blockchains", "signet", id="test-block-signet")))((("signet", id="signet")))known way for a system dependent on permissionless PoW to
 provide a highly usable blockchain without introducing economic
 incentives, so Bitcoin protocol developers began considering
 alternatives.  The primary goal was to preserve as much of the structure of
@@ -690,15 +661,15 @@ block was sanctioned by a trusted authority.
 
 Whereas mining in Bitcoin is permissionless--anyone can do it--mining on
 signet is fully permissioned.  Only those with permission can do it.
-This would be a completely unacceptable change to Bitcoin's mainnet--no
-one would use that software--but it's reasonable on a testnet where coins have
+This would be a completely unacceptable change to Bitcoin’s mainnet--no
+one would use that software--but it’s reasonable on a testnet where coins have
 no value and the only purpose is testing software and systems.
 
 BIP325 signets are designed to make it very easy to create your own.  If
 you disagree with how someone else is running their signet, you can
 start your own signet and connect your software to it.
 
-===== The default signet and custom signets
+##### The default signet and custom signets
 
 Bitcoin Core supports((("Bitcoin Core", "signet")))((("default signet")))((("custom signets"))) a default signet, which we believe to be the most
 widely used signet at the time of writing.  It is currently operated by
@@ -708,9 +679,9 @@ signet you will be using.
 
 As of this writing, the default signet has about 150,000 blocks and is
 about a gigabyte in size.  It supports all of the same features as
-Bitcoin's mainnet and is also used for testing proposed upgrades through
+Bitcoin’s mainnet and is also used for testing proposed upgrades through
 the Bitcoin Inquisition project, which is a software fork of Bitcoin
-Core that's only designed to run on signet.
+Core that’s only designed to run on signet.
 
 If you want to use a different signet, called a _custom signet_, you
 will need to know the script used to determine when a block is
@@ -720,9 +691,9 @@ to authorize blocks.  You may also need to connect to a seed node that
 will provide you with the addresses of peers on the custom signet.  For
 example:
 
-----
+```
 bitcoind -signet -signetchallenge=0123...cdef -signetseednode=example.com:1234
-----
+```
 
 As of this writing, we generally recommend that the public testing of
 mining software occur on testnet3 and that all other public testing of
@@ -731,7 +702,7 @@ Bitcoin software occur on the default signet.
 To interact with your chosen signet, you can use the +-signet+ parameter
 with +bitcoin-cli+, similar to how you used testnet.  For((("blockchain", "test blockchains", "signet", startref="blockchain-test-signet")))((("test blockchains", "signet", startref="test-block-signet")))((("signet", startref="signet"))) example:
 
-----
+```
 $ bitcoin-cli -signet getblockchaininfo
 {
   "chain": "signet",
@@ -748,9 +719,9 @@ $ bitcoin-cli -signet getblockchaininfo
   "pruned": false,
   "warnings": ""
 }
-----
+```
 
-==== Regtest: The Local Blockchain
+#### Regtest: The Local Blockchain
 
 Regtest, ((("blockchain", "test blockchains", "regtest", id="blockchain-test-regtest")))((("test blockchains", "regtest", id="test-block-regtest")))((("regtest", id="regtest")))which stands for
 "Regression Testing," is a Bitcoin Core feature that allows you to
@@ -763,23 +734,22 @@ test the Bitcoin Core software.
 
 To start ((("Bitcoin Core", "regtest")))Bitcoin Core in regtest mode, you use the +regtest+ flag:
 
-----
+```
 $ bitcoind -regtest
-----
+```
 
 Just like with testnet, Bitcoin Core will initialize a new blockchain
 under the _regtest_ subdirectory of your bitcoind default directory:
 
-----
+```
 bitcoind: Using data directory /home/username/.bitcoin/regtest
-----
+```
 
-[role="less_space pagebreak-before"]
 To use the command-line tool, you need to specify the +regtest+ flag
-too. Let's try the +getblockchaininfo+ command to inspect the regtest
+too. Let’s try the +getblockchaininfo+ command to inspect the regtest
 blockchain:
 
-----
+```
 $ bitcoin-cli -regtest getblockchaininfo
 {
   "chain": "regtest",
@@ -792,12 +762,12 @@ $ bitcoin-cli -regtest getblockchaininfo
   "chainwork": "[...]000000000000000000000000000000000000000000000000000002",
   "pruned": false,
   [...]
-----
+```
 
-As you can see, there are no blocks yet. Let's create a default wallet,
+As you can see, there are no blocks yet. Let’s create a default wallet,
 get an address, and then mine some (500 blocks) to earn the reward:
 
-----
+```
 $ bitcoin-cli -regtest createwallet ""
 
 $ bitcoin-cli -regtest getnewaddress
@@ -812,21 +782,21 @@ $ bitcoin-cli -regtest generatetoaddress 500 \
   ...,
   "32d55180d010ffebabf1c3231e1666e9eeed02c905195f2568c987c2751623c7"
 ]
-----
+```
 
 It will only take a few seconds to mine all these blocks, which
 certainly makes it easy for testing. If you check your wallet balance,
 you will see that you earned the rewards for the first 400 blocks (coinbase
 rewards must be 100 blocks deep before you can ((("blockchain", "test blockchains", "regtest", startref="blockchain-test-regtest")))((("test blockchains", "regtest", startref="test-block-regtest")))((("regtest", startref="regtest")))spend them):
 
-----
+```
 $ bitcoin-cli -regtest getbalance
 12462.50000000
-----
+```
 
-=== Using Test Blockchains for Development
+### Using Test Blockchains for Development
 
-Bitcoin's ((("blockchain", "test blockchains", "development usage")))((("test blockchains", "development usage")))various
+Bitcoin’s ((("blockchain", "test blockchains", "development usage")))((("test blockchains", "development usage")))various
 blockchains (regtest, signet, testnet3, mainnet) offer a range
 of testing environments for bitcoin development. Use the test
 blockchains whether you are developing for Bitcoin Core or another
@@ -848,4 +818,4 @@ Now that we know what data the blockchain contains and how cryptographic
 commitments securely tie the various parts together, we will look at the
 special commitment that both provide computational security and
 ensure no block can be changed without invalidating all other blocks
-built on top of it: Bitcoin's mining function.
+built on top of it: Bitcoin’s mining function.

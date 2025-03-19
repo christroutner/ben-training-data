@@ -1,34 +1,33 @@
-[[ch04_keys_addresses]]
-== Keys and Addresses
+## Keys and Addresses
 
 Alice wants to pay Bob, but the thousands of Bitcoin full nodes who
-will verify her transaction don't know who Alice or Bob are--and we want
+will verify her transaction don’t know who Alice or Bob are--and we want
 to keep it that way to protect their privacy.  Alice needs to
 communicate that Bob should receive some of her bitcoins without tying
-any aspect of that transaction to Bob's real-world identity or to other
+any aspect of that transaction to Bob’s real-world identity or to other
 Bitcoin payments that Bob receives.  The method Alice uses must ensure
 that only Bob can further spend the bitcoins he receives.
 
 The original Bitcoin paper describes a very simple scheme for achieving
-those goals, shown in <<pay-to-pure-pubkey>>.  
+those goals, shown in [Transaction chain from original Bitcoin paper.](#pay-to-pure-pubkey).  
 
-[[pay-to-pure-pubkey]]
-.Transaction chain from original Bitcoin paper.
-image::images/mbc3_aain01.png["Transaction chain from original Bitcoin paper"]
+<a name="pay-to-pure-pubkey"></a>**Transaction chain from original Bitcoin paper.**
+
+!["Transaction chain from original Bitcoin paper"](images/mbc3_aain01.png)
 
 A receiver like Bob
 accepts bitcoins to a public key in a transaction that is signed by the
 spender (like Alice).  The bitcoins that Alice is spending had been
 previously received to one of her public keys, and she uses the
 corresponding private key to generate her signature.  Full nodes can
-verify that Alice's signature commits to the output of a hash function
-that itself commits to Bob's public key and other transaction details.
+verify that Alice’s signature commits to the output of a hash function
+that itself commits to Bob’s public key and other transaction details.
 
-We'll examine public keys, private keys, signatures, and hash functions
+We’ll examine public keys, private keys, signatures, and hash functions
 in this chapter, and then use all of them together to describe
 the addresses used by modern Bitcoin software.
 
-=== Public Key Cryptography
+### Public Key Cryptography
 
 Public ((("public key cryptography", id="pub-key")))key
 cryptography was invented in the 1970s and is a mathematical foundation
@@ -55,13 +54,13 @@ key that allows the private key to be used to generate signatures on
 messages. These signatures can be validated against the public key without
 revealing the private key.
 
-[TIP]
-====
+<dl><dt><strong>💡 TIP</strong></dt><dd>
+
 In some wallet
 implementations, the private and public keys are stored together as a
 _key pair_ for convenience. However, the public key can be calculated
 from the private key, so storing only the private key is also possible.
-====
+</dd></dl>
 
 A Bitcoin wallet contains a collection of key
 pairs, each consisting of a private key and a public key. The private
@@ -70,11 +69,10 @@ From the private key, we
 use elliptic curve multiplication, a one-way cryptographic function, to
 generate a public key (_K_).
 
-[role="less_space pagebreak-before"]
-.Why Use Asymmetric Cryptography (Public/Private Keys)?
-****
+**Why Use Asymmetric Cryptography (Public/Private Keys)?**
+
 Why is ((("asymmetric cryptography", see="public key cryptography")))((("public key cryptography", "purpose in Bitcoin")))((("digital signatures")))asymmetric
-cryptography used in Bitcoin? It's not used to "encrypt" (make secret)
+cryptography used in Bitcoin? It’s not used to "encrypt" (make secret)
 the transactions. Rather, a useful property of asymmetric cryptography
 is the ability to generate _digital signatures_. A private key can be
 applied to a transaction to produce a
@@ -85,10 +83,8 @@ signature. This useful property of asymmetric cryptography makes it
 possible for anyone to verify every signature on every transaction,
 while ensuring that only the owners of private keys can produce valid
 signatures.
-****
 
-[[private_keys]]
-==== Private Keys
+#### Private Keys
 
 A
 private ((("private keys", "generating", id="private-key-generate")))key is simply a number, picked at random.  Control
@@ -99,19 +95,19 @@ control of funds used in a transaction. The private key must remain
 secret at all times because revealing it to third parties is equivalent
 to giving them control over the bitcoins secured by that key. The private
 key must also be backed up and protected from accidental loss because
-if it's lost, it cannot be recovered and the funds secured by it are
+if it’s lost, it cannot be recovered and the funds secured by it are
 forever lost too.
 
-[TIP]
-====
+<dl><dt><strong>💡 TIP</strong></dt><dd>
+
 A Bitcoin private key is just a number. You can pick your private keys
 randomly using just a coin, pencil, and paper: toss a coin 256 times and
 you have the binary digits of a random private key you can use in a
 Bitcoin wallet. The public key can then be generated from the private
-key.  Be careful, though, as any process that's less than completely
+key.  Be careful, though, as any process that’s less than completely
 random can significantly reduce the security of your private key and the
 bitcoins it controls.
-====
+</dd></dl>
 
 The first and most important step in generating keys is to find a secure
 source of randomness (which computer scientists ((("entropy")))call _entropy_). Creating a Bitcoin key is almost
@@ -120,11 +116,10 @@ use to pick that number does not matter as long as it is not predictable
 or repeatable. Bitcoin software uses cryptographically secure random
 number generators to produce 256 bits of entropy.
 
-[role="less_space pagebreak-before"]
 More precisely, the private key can be any number between 0 and _n_ -
 1 inclusive, where _n_ is a constant (_n_ = 1.1578 × 10^77^, slightly less
 than 2^256^) defined as the order of the elliptic curve used in Bitcoin
-(see <<elliptic_curve>>). To create such a key, we randomly pick a
+(see [Elliptic Curve Cryptography Explained](#elliptic-curve-cryptography-explained)). To create such a key, we randomly pick a
 256-bit number and check that it is less than _n_. In programming terms,
 this is usually achieved by feeding a larger string of random bits,
 collected from a cryptographically secure source of randomness, into the
@@ -133,8 +128,8 @@ that can be interpreted as a number.
 If the result is less than _n_, we have a suitable private key.
 Otherwise, we simply try again with another random number.
 
-[WARNING]
-====
+<dl><dt><strong>⚠️ WARNING</strong></dt><dd>
+
 Do not write your own code to create a random
 number or use a "simple" random number generator offered by your
 programming language. Use a cryptographically secure pseudorandom number
@@ -142,38 +137,36 @@ generator (CSPRNG) with a seed from a source of sufficient entropy.
 Study the documentation of the random number generator library you
 choose to make sure it is cryptographically secure. Correct
 implementation of the CSPRNG is critical to the security of the keys.
-====
+</dd></dl>
 
 The following is a randomly generated private key (_k_) shown in
 hexadecimal format (256 bits shown as 64 hexadecimal digits, each 4
 bits):
 
-----
+```
 1E99423A4ED27608A15A2616A2B0E9E52CED330AC530EDCC32C8FFC6A526AEDD
-----
+```
 
-[TIP]
-====
-The size of Bitcoin's private key space (2^256^) is an unfathomably
+<dl><dt><strong>💡 TIP</strong></dt><dd>
+
+The size of Bitcoin’s private key space (2^256^) is an unfathomably
 large number. It is approximately 10^77^ in decimal. For comparison, the
 visible universe is estimated to((("private keys", "generating", startref="private-key-generate"))) contain 10^80^ atoms.
-====
+</dd></dl>
 
-[[elliptic_curve]]
-==== Elliptic Curve Cryptography Explained
+#### Elliptic Curve Cryptography Explained
 
 Elliptic curve cryptography (ECC) is((("public key cryptography", "elliptic curve cryptography as", id="pub-key-ecc")))((("elliptic curve cryptography (ECC)", id="ecc"))) a type of asymmetric
 or public key cryptography based on the discrete logarithm problem as
 expressed by addition and multiplication on the points of an elliptic
 curve.
 
-<<ecc-curve>> is an example of an elliptic curve, similar to that used
+[An elliptic curve.](#ecc-curve) is an example of an elliptic curve, similar to that used
 by Bitcoin.
 
-[[ecc-curve]]
-[role="width-50"]
-.An elliptic curve.
-image::images/mbc3_0402.png["ecc-curve"]
+<a name="ecc-curve"></a>**An elliptic curve.**
+
+!["ecc-curve"](images/mbc3_0402.png)
 
 Bitcoin uses a specific elliptic curve and set of mathematical
 constants, as defined in a standard called +secp256k1+, established by
@@ -181,21 +174,15 @@ the National Institute of Standards and Technology (NIST). The
 +secp256k1+ curve is defined by the following function, which produces
 an elliptic curve:
 
-[latexmath]
-++++
 \begin{equation}
 {y^2 = (x^3 + 7)}~\text{over}~(\mathbb{F}_p)
 \end{equation}
-++++
 
 or
 
-[latexmath]
-++++
 \begin{equation}
 {y^2 \mod p = (x^3 + 7) \mod p}
 \end{equation}
-++++
 
 The _mod p_ (modulo prime number _p_) indicates that this curve is over a
 finite field of prime order _p_, also written as latexmath:[\(
@@ -206,32 +193,29 @@ Because this curve is defined over a finite field of prime order instead
 of over the real numbers, it looks like a pattern of dots scattered in
 two dimensions, which makes it difficult to visualize. However, the math
 is identical to that of an elliptic curve over real numbers. As an
-example, <<ecc-over-F17-math>> shows the same elliptic curve over a much
+example, [Elliptic curve cryptography: visualizing an elliptic curve over F(p), with p=17.](#ecc-over-F17-math) shows the same elliptic curve over a much
 smaller finite field of prime order 17, showing a pattern of dots on a
 grid. The +secp256k1+ Bitcoin elliptic curve can be thought of as a much
 more complex pattern of dots on a unfathomably large grid.
 
-[[ecc-over-F17-math]]
-.Elliptic curve cryptography: visualizing an elliptic curve over F(p), with p=17.
-image::images/mbc3_0403.png["ecc-over-F17-math"]
+<a name="ecc-over-F17-math"></a>**Elliptic curve cryptography: visualizing an elliptic curve over F(p), with p=17.**
+
+!["ecc-over-F17-math"](images/mbc3_0403.png)
 
 So, for example, the following is a point P with coordinates (x, y) that
 is a point on the +secp256k1+ curve:
 
-[source, python]
-----
+```python
 P = 
 (55066263022277343669578718895168534326250603453777594175500187360389116729240,
 32670510020758816978083085130507043184471273380659243275938904335757337482424)
-----
+```
 
-<<example_4_1>> shows how you can check this yourself using Python.
+[Using Python to confirm that this point is on the elliptic curve](#example_4_1) shows how you can check this yourself using Python.
 
-[[example_4_1]]
-.Using Python to confirm that this point is on the elliptic curve
-====
-[source, pycon]
-----
+<a name="example_4_1"></a>**Using Python to confirm that this point is on the elliptic curve**
+
+```pycon
 Python 3.10.6 (main, Nov 14 2022, 16:10:14) [GCC 11.3.0] on linux
 Type "help", "copyright", "credits" or "license" for more information.
 > p = 115792089237316195423570985008687907853269984665640564039457584007908834671663
@@ -239,14 +223,12 @@ Type "help", "copyright", "credits" or "license" for more information.
 > y = 32670510020758816978083085130507043184471273380659243275938904335757337482424
 > (x ** 3 + 7 - y**2) % p
 0
-----
-====
+```
 
-[role="less_space pagebreak-before"]
 In elliptic curve math, there is a point called the "point at infinity,"
 which roughly corresponds to the role of zero in addition. On computers,
-it's sometimes represented by x = y = 0 (which doesn't satisfy the
-elliptic curve equation, but it's an easy separate case that can be
+it’s sometimes represented by x = y = 0 (which doesn’t satisfy the
+elliptic curve equation, but it’s an easy separate case that can be
 checked).
 
 There is also a pass:[+] operator, called "addition," which has some
@@ -287,8 +269,7 @@ standard way that extends addition. For a point P on the elliptic curve,
 if k is a whole number, then kP = P + P + P + ... + P (k times). Note
 that k is sometimes confusingly called an "exponent" in ((("public key cryptography", "elliptic curve cryptography as", startref="pub-key-ecc")))((("elliptic curve cryptography (ECC)", startref="ecc")))this case.
 
-[[public_key_derivation]]
-==== Public Keys
+#### Public Keys
 
 The ((("public keys", "generating", id="public-key-generate")))((("elliptic curve multiplication", id="elliptic-multiply")))public key is calculated from
 the private key using elliptic curve multiplication, which is
@@ -297,11 +278,11 @@ constant point called the _generator point_, and _K_ is the resulting
 public key. The reverse operation, known as "finding the discrete
 logarithm"—calculating _k_ if you know __K__—is as difficult as trying
 all possible values of _k_ (i.e., a brute-force search). Before we
-demonstrate how to generate a public key from a private key, let's look
+demonstrate how to generate a public key from a private key, let’s look
 at elliptic curve cryptography in a bit more detail.
 
-[TIP]
-====
+<dl><dt><strong>💡 TIP</strong></dt><dd>
+
 Elliptic curve multiplication is a type of function that cryptographers
 call a "trap door" function: it is easy to do in one direction
 (multiplication) and impossible to do in the reverse direction
@@ -310,7 +291,7 @@ key and then share it with the world knowing that no one can reverse the
 function and calculate the private key from the public key. This
 mathematical trick becomes the basis for unforgeable and secure digital
 signatures that prove control over bitcoin funds.
-====
+</dd></dl>
 
 Starting with a private key in the
 form of a randomly generated number _k_, we multiply it by a
@@ -320,55 +301,45 @@ corresponding public key _K_. The generator point is specified as part
 of the +secp256k1+ standard and is always the same for all keys in
 bitcoin:
 
-[latexmath]
-++++
 \begin{equation}
 {K = k \times G}
 \end{equation}
-++++
 
 where _k_ is the private key, _G_ is the generator point, and _K_ is the
 resulting public key, a point on the curve. Because the generator point
 is always the same for all Bitcoin users, a private key _k_ multiplied
 with _G_ will always result in the same public key _K_. The relationship
 between _k_ and _K_ is fixed but can only be calculated in one
-direction, from _k_ to _K_. That's why a Bitcoin public key (_K_) can be
-shared with anyone and does not reveal the user's private key (_k_).
+direction, from _k_ to _K_. That’s why a Bitcoin public key (_K_) can be
+shared with anyone and does not reveal the user’s private key (_k_).
 
-[TIP]
-====
+<dl><dt><strong>💡 TIP</strong></dt><dd>
+
 A private key can be converted into a public key, but a public key
 cannot be converted back into a private key because the math only works
 one way.
-====
+</dd></dl>
 
 Implementing the elliptic curve multiplication, we take the private key
 _k_ generated previously and multiply it with the generator point _G_ to
 find the public key _K_:
 
-[source, python]
-----
+```python
 K = 1E99423A4ED27608A15A2616A2B0E9E52CED330AC530EDCC32C8FFC6A526AEDD × G
-----
+```
 
 Public key _K_ is defined as a point _K_ = (_x_, _y_):
 
-[latexmath]
-++++
 \begin{equation}
 K = (x, y)
 \end{equation}
-++++
-
 
 where,
 
-----
+```
 x = F028892BAD7ED57D2FB57BF33081D5CFCF6F9ED3D3D7F159C2E2FFF579DC341A
 y = 07CF33DA18BD734C600B96A72BBC4749D5141C90EC8AC328AE52DDFE2E505BDB
-----
-
-
+```
 
 To visualize multiplication of a point with an integer, we will use the
 simpler elliptic curve over real numbers&#x2014;remember, the math is
@@ -378,23 +349,23 @@ elliptic curves, adding a point to itself is the equivalent of drawing a
 tangent line on the point and finding where it intersects the curve
 again, then reflecting that point on the x-axis.
 
-<<ecc_illustrated>> shows the process for deriving _G_, _2G_, _4G_, as a
+[Elliptic curve cryptography: visualizing the multiplication of a point G by an integer k on an elliptic curve.](#ecc_illustrated) shows the process for deriving _G_, _2G_, _4G_, as a
 geometric operation on the curve.
 
-[TIP]
-====
+<dl><dt><strong>💡 TIP</strong></dt><dd>
+
 Many Bitcoin implementations use
 the https://oreil.ly/wD60m[libsecp256k1 cryptographic
 library] to do the elliptic curve((("public keys", "generating", startref="public-key-generate")))((("elliptic curve multiplication", startref="elliptic-multiply"))) math.
-====
+</dd></dl>
 
-[[ecc_illustrated]]
-.Elliptic curve cryptography: visualizing the multiplication of a point G by an integer k on an elliptic curve.
-image::images/mbc3_0404.png["ecc_illustrated"]
+<a name="ecc_illustrated"></a>**Elliptic curve cryptography: visualizing the multiplication of a point G by an integer k on an elliptic curve.**
 
-=== Output and Input Scripts
+!["ecc_illustrated"](images/mbc3_0404.png)
 
-Although((("public key cryptography", "input/output scripts", id="pub-key-input-output")))((("input scripts", id="input-script")))((("output scripts", id="output-script")))((("scripts", "input/output", id="script-input-output"))) the illustration from the original Bitcoin paper, <<pay-to-pure-pubkey>>,
+### Output and Input Scripts
+
+Although((("public key cryptography", "input/output scripts", id="pub-key-input-output")))((("input scripts", id="input-script")))((("output scripts", id="output-script")))((("scripts", "input/output", id="script-input-output"))) the illustration from the original Bitcoin paper, [Transaction chain from original Bitcoin paper.](#pay-to-pure-pubkey),
 shows public keys (pubkeys) and signatures (sigs) being used directly,
 the first version of Bitcoin instead had payments sent to a field called
 _output script_ and had spends of those bitcoins authorized by a field called _input script_.
@@ -403,101 +374,98 @@ These fields allow additional operations to be performed in addition to
 For example, an output script can contain two public keys and require two
 corresponding signatures be placed in the spending input script.
 
-Later, in <<tx_script>>, we'll learn about scripts in detail.  For now,
+Later, in [tx_script](#tx_script), we’ll learn about scripts in detail.  For now,
 all we need to understand is that bitcoins are received to an
 output script that acts like a public key, and bitcoin spending is
 authorized by an input script that acts like a ((("public key cryptography", "input/output scripts", startref="pub-key-input-output")))((("input scripts", startref="input-script")))((("output scripts", startref="output-script")))((("scripts", "input/output", startref="script-input-output")))signature.
 
-[[p2pk]]
-=== IP Addresses: The Original Address for Bitcoin (P2PK)
+### IP Addresses: The Original Address for Bitcoin (P2PK)
 
-We've ((("public key cryptography", "IP address payments and", id="pub-key-ipaddress")))((("IP addresses for Bitcoin payments", id="ipaddress-payment")))((("payments", "via IP addresses", id="payment-ipaddress")))((("P2PK (pay to public key)", id="p2pk-ch4")))((("addresses", "P2PK (pay to public key)", id="address-p2pk-ch4")))established that Alice can pay Bob by assigning some of her
-bitcoins to one of Bob's public keys.  But how does Alice get one of
-Bob's public keys?  Bob could just give her a copy, but let's look again
-at the public key we worked with in <<public_key_derivation>>.  Notice
-that it's quite long.  Imagine Bob trying to read that to Alice over the
+We’ve ((("public key cryptography", "IP address payments and", id="pub-key-ipaddress")))((("IP addresses for Bitcoin payments", id="ipaddress-payment")))((("payments", "via IP addresses", id="payment-ipaddress")))((("P2PK (pay to public key)", id="p2pk-ch4")))((("addresses", "P2PK (pay to public key)", id="address-p2pk-ch4")))established that Alice can pay Bob by assigning some of her
+bitcoins to one of Bob’s public keys.  But how does Alice get one of
+Bob’s public keys?  Bob could just give her a copy, but let’s look again
+at the public key we worked with in [Public Keys](#public-keys).  Notice
+that it’s quite long.  Imagine Bob trying to read that to Alice over the
 phone:
 
-----
+```
 x = F028892BAD7ED57D2FB57BF33081D5CFCF6F9ED3D3D7F159C2E2FFF579DC341A
 y = 07CF33DA18BD734C600B96A72BBC4749D5141C90EC8AC328AE52DDFE2E505BDB
-----
-
+```
 
 Instead of direct public key entry, the earliest version of Bitcoin
-software allowed a spender to enter the receiver's IP address, as shown in <<bitcoin_01_send>>.  This
+software allowed a spender to enter the receiver’s IP address, as shown in [Early send screen for Bitcoin via [The Internet Archive](https://oreil.ly/IDV1a).](#bitcoin_01_send).  This
 feature was later removed--there are many problems
 with using IP addresses--but a quick description of it will help us
 better understand why certain features may have been added to the
 Bitcoin protocol.
 
-[[bitcoin_01_send]]
-.Early send screen for Bitcoin via https://oreil.ly/IDV1a[The Internet Archive].
-image::images/mbc3_0405.png["Early Bitcoin send screen"]
+<a name="bitcoin_01_send"></a>**Early send screen for Bitcoin via [The Internet Archive](https://oreil.ly/IDV1a).**
 
-If Alice entered Bob's IP address in Bitcoin 0.1, her full node would
+!["Early Bitcoin send screen"](images/mbc3_0405.png)
+
+If Alice entered Bob’s IP address in Bitcoin 0.1, her full node would
 establish a connection with his full node and receive a new public key
-from Bob's wallet that his node had never previously given anyone.  This
+from Bob’s wallet that his node had never previously given anyone.  This
 being a new public key was important to ensure that different
-transactions paying Bob couldn't be connected together by someone
+transactions paying Bob couldn’t be connected together by someone
 looking at the blockchain and noticing that all of the transactions paid
 the same public key.
 
-Using the public key her node received from Bob's node, Alice's wallet
+Using the public key her node received from Bob’s node, Alice’s wallet
 would construct a transaction output paying a very simple output script:
 
-----
+```
 <Bob's public key> OP_CHECKSIG
-----
+```
 
 Bob would later be able to spend that output with an input script consisting
 entirely of his signature:
 
-----
+```
 <Bob's signature>
-----
+```
 
 To figure out what an output and input script are doing, you can
 combine them together (input script first) and then note that each piece of
 data (shown in angle brackets) is placed at the top of a list of items,
 called a stack.  When an operation code (opcode) is encountered, it uses
-items from the stack, starting with the topmost items.  Let's look at
+items from the stack, starting with the topmost items.  Let’s look at
 how that works by beginning with the combined script:
 
-----
+```
 <Bob's signature> <Bob's public key> OP_CHECKSIG
-----
+```
 
-For this script, Bob's signature is put on the stack, then Bob's public
+For this script, Bob’s signature is put on the stack, then Bob’s public
 key is placed on top of it.  The +OP_CHECKSIG+ operation consumes two
 elements, starting with the public key and followed by the signature,
 removing them from the stack.  It verifies the signature corresponds to
 the public key and also commits to (signs) the various fields in the
 transaction.  If the signature is correct, +OP_CHECKSIG+ replaces itself
 on the stack with the value 1; if the signature was not correct, it
-replaces itself with a 0.  If there's a nonzero item on top of the stack at the
+replaces itself with a 0.  If there’s a nonzero item on top of the stack at the
 end of evaluation, the script passes.  If all scripts in a transaction
 pass, and all of the other details about the transaction are valid, then
 full nodes will consider the transaction to be valid.
 
 In short, the preceding script uses the same public key and signature
 described in the original paper but adds in the complexity of two script
-fields and an opcode.  That seems like extra work here, but we'll begin
+fields and an opcode.  That seems like extra work here, but we’ll begin
 to see the benefits when we look at the following section.
 
 This type of output is known today as _pay to public key_, or _P2PK_ for
 short.  It was never widely used for payments, and no widely used
 program has supported IP address payments for almost((("public key cryptography", "IP address payments and", startref="pub-key-ipaddress")))((("IP addresses for Bitcoin payments", startref="ipaddress-payment")))((("payments", "via IP addresses", startref="payment-ipaddress")))((("P2PK (pay to public key)", startref="p2pk-ch4")))((("addresses", "P2PK (pay to public key)", startref="address-p2pk-ch4"))) a decade.
 
-[[addresses_for_p2pkh]]
-=== Legacy Addresses for P2PKH
+### Legacy Addresses for P2PKH
 
 Entering ((("public key cryptography", "hash functions and", id="pub-key-hash")))((("hash functions", "Bitcoin payments and", id="hash-payment")))((("payments", "with hash functions", secondary-sortas="hash functions", id="payment-hash")))((("P2PKH (pay to public key hash)", id="p2pkh-legacy")))((("addresses", "P2PKH (pay to public key hash)", id="address-p2pkh-legacy")))the IP address of the person you want to pay has a number of
 advantages, but it also has a number of downsides.  One particular
 downside is that the receiver needs their wallet to be online at their
 IP address, and it needs to be accessible from the outside world.  For
-a lot of people, that isn't an option.  They turn their computers off at
-night, their laptops go to sleep, they're behind firewalls, or they're
+a lot of people, that isn’t an option.  They turn their computers off at
+night, their laptops go to sleep, they’re behind firewalls, or they’re
 using Network Address Translation (NAT).
 
 This brings us back to the problem of receivers like Bob having to give
@@ -514,28 +482,28 @@ fixed amount of data.  A cryptographic hash function will always produce
 the same output when given the same input, and a secure function will
 also make it impractical for somebody to choose a different input that
 produces a previously-seen output.  That makes the ((("commitments", id="commitment")))output a _commitment_
-to the input.  It's a promise that, in practice, only input _x_ will
+to the input.  It’s a promise that, in practice, only input _x_ will
 produce output _X_.
 
 For example, imagine I want to ask you a question and also give you my
-answer in a form that you can't read immediately.  Let's say the
+answer in a form that you can’t read immediately.  Let’s say the
 question is, "in what year did Satoshi Nakamoto start working on
-Bitcoin?"  I'll give you a commitment to my answer in the form of
+Bitcoin?"  I’ll give you a commitment to my answer in the form of
 output from the((("SHA256 hash function"))) SHA256 hash function, the function most commonly used in
 Bitcoin:
 
-----
+```
 94d7a772612c8f2f2ec609d41f5bd3d04a5aa1dfe3582f04af517d396a302e4e
-----
+```
 
 Later, after you tell me your guess to the answer of the question, I can
 reveal my answer and prove to you that my answer, as input to the hash
 function, produces exactly the same output I gave you earlier:
 
-----
+```
 $ echo "2007.  He said about a year and a half before Oct 2008" | sha256sum
 94d7a772612c8f2f2ec609d41f5bd3d04a5aa1dfe3582f04af517d396a302e4e
-----
+```
 
 Now imagine that we ask Bob the question, "what is your public key?" Bob
 can use a hash function to give us a cryptographically secure commitment
@@ -553,18 +521,14 @@ to public keys by first hashing the key with SHA256 and then hashing
 that output with RIPEMD-160; this produced a 20-byte commitment to the
 public key.
 
-[role="less_space pagebreak-before"]
 We can look at that algorithmically.
 Starting with the public key _K_, we compute the SHA256 hash and then
 compute the RIPEMD-160 hash of the result, producing a 160-bit (20-byte)
 number:
 
-[latexmath]
-++++
 \begin{equation}
 {A = RIPEMD160(SHA256(K))}
 \end{equation}
-++++
 
 where _K_ is the public key and _A_ is the resulting commitment.
 
@@ -572,55 +536,54 @@ Now that we understand how to make a commitment to a public key, we need
 to figure out how to use it in a transaction.  Consider the following
 output script:
 
-----
+```
 OP_DUP OP_HASH160 <Bob's commitment> OP_EQUAL OP_CHECKSIG
-----
+```
 
 And also the following input script:
 
-----
+```
 <Bob's signature> <Bob's public key>
-----
+```
 
 Together, they form the following script:
 
-----
+```
 <sig> <pubkey> OP_DUP OP_HASH160 <commitment> OP_EQUALVERIFY OP_CHECKSIG
-----
+```
 
-As we did in <<p2pk>>, we start putting items on the stack.  Bob's
+As we did in [IP Addresses: The Original Address for Bitcoin (P2PK)](#ip-addresses:-the-original-address-for-bitcoin-(p2pk)), we start putting items on the stack.  Bob’s
 signature goes on first; his public key is then placed on top of the
 stack.  The +OP_DUP+ operation duplicates the top item, so the top and
-second-to-top item on the stack are now both Bob's public key.  The
+second-to-top item on the stack are now both Bob’s public key.  The
 +OP_HASH160+ operation consumes (removes) the top public key and
 replaces it with the result of hashing it with +RIPEMD160(SHA256(K))+,
-so now the top of the stack is a hash of Bob's public key.  Next, the
-commitment to Bob's public key is added to the top of the stack.  The
+so now the top of the stack is a hash of Bob’s public key.  Next, the
+commitment to Bob’s public key is added to the top of the stack.  The
 +OP_EQUALVERIFY+ operation consumes the top two items and verifies that
 they are equal; that should be the case if the public key Bob provided
 in the input script is the same public key used to create the commitment in
 the output script that Alice paid.  If +OP_EQUALVERIFY+ fails, the whole
-script fails.  Finally, we're left with a stack containing just Bob's
+script fails.  Finally, we’re left with a stack containing just Bob’s
 signature and his public key; the +OP_CHECKSIG+ opcode verifies they
 correspond with each other and that the signature commits to the
 transaction.
 
 Although this process of paying to a public key hash (_P2PKH_) may seem
-convoluted, it allows Alice's payment to
+convoluted, it allows Alice’s payment to
 Bob to contain only a 20 byte commitment to his public key instead of
-the key itself, which would've been 65 bytes in the original version of
-Bitcoin.  That's a lot less data for Bob to have to communicate to
+the key itself, which would’ve been 65 bytes in the original version of
+Bitcoin.  That’s a lot less data for Bob to have to communicate to
 Alice.
 
-However, we haven't yet discussed how Bob gets those 20 bytes from his
-Bitcoin wallet to Alice's wallet.  There are commonly used encodings for
+However, we haven’t yet discussed how Bob gets those 20 bytes from his
+Bitcoin wallet to Alice’s wallet.  There are commonly used encodings for
 byte values, such as hexadecimal, but any mistake made in copying a
 commitment would result in the bitcoins being sent to an unspendable
-output, causing them to be lost forever.  In the next section, we'll
+output, causing them to be lost forever.  In the next section, we’ll
 look at compact encoding and reliable ((("public key cryptography", "hash functions and", startref="pub-key-hash")))((("hash functions", "Bitcoin payments and", startref="hash-payment")))((("payments", "with hash functions", secondary-sortas="hash functions", startref="payment-hash")))((("P2PKH (pay to public key hash)", startref="p2pkh-legacy")))((("addresses", "P2PKH (pay to public key hash)", startref="address-p2pkh-legacy")))((("commitments", startref="commitment")))checksums.
 
-[[base58]]
-=== Base58check Encoding
+### Base58check Encoding
 
 In order((("public key cryptography", "base58check encoding", id="pub-key-base58")))((("base58check encoding", id="base58-ch4")))((("encoding", "base58check", id="encode-base58"))) to represent long numbers in a compact way,
 using fewer symbols, many computer systems use mixed-alphanumeric
@@ -640,16 +603,14 @@ another and can appear identical when displayed in certain fonts.
 Specifically, base58 is base64 without the 0 (number zero), O (capital
 o), l (lower L), I (capital i), and the symbols "+" and
 "/." Or, more simply, it is a set of lowercase and capital letters and
-numbers without the four (0, O, l, I) just mentioned. <<base58alphabet>>
+numbers without the four (0, O, l, I) just mentioned. [Bitcoin’s base58 alphabet](#base58alphabet)
 shows the full base58 alphabet.
 
-[[base58alphabet]]
-.Bitcoin's base58 alphabet
-====
-----
+<a name="base58alphabet"></a>**Bitcoin’s base58 alphabet**
+
+```
 123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz
-----
-====
+```
 
 To add extra security against typos or transcription errors, base58check
 includes((("checksums"))) a _checksum_ encoded in the base58 alphabet. The checksum is an
@@ -669,15 +630,15 @@ prefix to the data, called ((("version prefixes", id="version-prefix")))the "ver
 identify the type of data that is encoded. For example, the prefix zero
 (0x00 in hex) indicates that the data should be used as the commitment (hash) in
 a legacy P2PKH output script.  A list of common version prefixes is shown
-in <<base58check_versions>>.
+in [base58check_versions](#base58check_versions).
 
 Next, we compute the "double-SHA" checksum, meaning we apply the SHA256
 hash-algorithm twice on the previous result (the prefix concatenated
 with the data):
 
-----
+```
 checksum = SHA256(SHA256(prefix||data))
-----
+```
 
 From the resulting 32-byte hash (hash-of-a-hash), we take only the first
 four bytes. These four bytes serve as the error-checking code, or
@@ -685,14 +646,13 @@ checksum. The checksum is appended to the end.
 
 The result is composed of three items: a prefix, the data, and a
 checksum. This result is encoded using the base58 alphabet described
-previously. <<base58check_encoding>> illustrates the base58check
+previously. [Base58check encoding: a base58, versioned, and checksummed format for unambiguously encoding bitcoin data.](#base58check_encoding) illustrates the base58check
 encoding process.
 
-[[base58check_encoding]]
-.Base58check encoding: a base58, versioned, and checksummed format for unambiguously encoding bitcoin data.
-image::images/mbc3_0406.png["Base58checkEncoding"]
+<a name="base58check_encoding"></a>**Base58check encoding: a base58, versioned, and checksummed format for unambiguously encoding bitcoin data.**
 
-++++
+!["Base58checkEncoding"](images/mbc3_0406.png)
+
 <p class="fix_tracking2">
 In Bitcoin, other data besides public key commitments are presented to the user in
 base58check encoding to make that data compact, easy to read, and easy to detect
@@ -706,9 +666,7 @@ a base58check-encoded private key wallet import format (WIF) that starts with a 
 version prefixes and the resulting base58 characters are shown in
 <a data-type="xref" href="#base58check_versions">#base58check_versions</a>.
 </p>
-++++
 
-++++
 <table id="base58check_versions">
 <caption>Base58check version prefix and encoded result examples</caption>
 <thead>
@@ -751,21 +709,16 @@ version prefixes and the resulting base58 characters are shown in
 </tr>
 </tbody>
 </table>
-++++
 
 Combining public keys, hash-based commitments, and base58check
-encoding, <<pubkey_to_address>> illustrates the conversion of a public key
+encoding, [Public key to Bitcoin address: conversion of a public key to a Bitcoin address.](#pubkey_to_address) illustrates the conversion of a public key
 into a Bitcoin ((("public key cryptography", "base58check encoding", startref="pub-key-base58")))((("base58check encoding", startref="base58-ch4")))((("encoding", "base58check", startref="encode-base58")))((("version prefixes", startref="version-prefix")))address.
 
-[[pubkey_to_address]]
-.Public key to Bitcoin address: conversion of a public key to a Bitcoin address.
-image::images/mbc3_0407.png["pubkey_to_address"]
+<a name="pubkey_to_address"></a>**Public key to Bitcoin address: conversion of a public key to a Bitcoin address.**
 
-[[comp_pub]]
-=== Compressed Public Keys
+!["pubkey_to_address"](images/mbc3_0407.png)
 
-//https://lists.linuxfoundation.org/pipermail/bitcoin-dev/2011-November/000778.html
-
+### Compressed Public Keys
 
 When ((("public key cryptography", "compressed public keys", id="pub-key-compress")))((("compressed public keys", id="compress-pub-key")))((("uncompressed public keys", id="uncompress-pub-key")))Bitcoin was first authored, its developers only knew how to create
 65-byte public keys.  However, a later developer became aware of an
@@ -776,42 +729,40 @@ public keys are known as _compressed public keys_, and the original 65-byte keys
 results in smaller transactions, allowing more payments to be made in the same
 block.
 
-As we saw in the section <<public_key_derivation>>, a public key is a point [.keep-together]#(x, y)# on an
+As we saw in the section [Public Keys](#public-keys), a public key is a point (x, y) on an
 elliptic curve. Because the curve expresses a mathematical function, a
 point on the curve represents a solution to the equation and, therefore,
 if we know the _x_ coordinate, we can calculate the _y_ coordinate by
-solving the equation [.keep-together]#y^2^ mod p = (x^3^ + 7) mod p.# That allows us to
+solving the equation y^2^ mod p = (x^3^ + 7) mod p. That allows us to
 store only the _x_ coordinate of the public key point, omitting the _y_
 coordinate and reducing the size of the key and the space required to
 store it by 256 bits. An almost 50% reduction in size in every
 transaction adds up to a lot of data saved over time!
 
 Here is the public key generated by the private key we created in
-<<public_key_derivation>>:
+[Public Keys](#public-keys):
 
-----
+```
 x = F028892BAD7ED57D2FB57BF33081D5CFCF6F9ED3D3D7F159C2E2FFF579DC341A
 y = 07CF33DA18BD734C600B96A72BBC4749D5141C90EC8AC328AE52DDFE2E505BDB
-----
+```
 
-Here's the same public key shown as a 520-bit number (130 hex digits)
+Here’s the same public key shown as a 520-bit number (130 hex digits)
 with the prefix +04+ followed by +x+ and then +y+ coordinates, as +04 x
 y+:
 
-++++
 <pre data-type="programlisting">
 K = 04F028892BAD7ED57D2FB57BF33081D5CFCF6F9ED3D3D7F159C2E2FFF579DC341A\
     07CF33DA18BD734C600B96A72BBC4749D5141C90EC8AC328AE52DDFE2E505BDB
 </pre>
-++++
 
 Whereas uncompressed public keys have a prefix of +04+, compressed
-public keys start with either a +02+ or a +03+ prefix. Let's look at why
+public keys start with either a +02+ or a +03+ prefix. Let’s look at why
 there are two possible prefixes: because the left side of the equation
 is __y__^2^, the solution for _y_ is a square root, which can have a
 positive or negative value. Visually, this means that the resulting _y_
 coordinate can be above or below the x-axis. As you can see from the
-graph of the elliptic curve in <<ecc-curve>>, the curve is symmetric,
+graph of the elliptic curve in [An elliptic curve.](#ecc-curve), the curve is symmetric,
 meaning it is reflected like a mirror by the x-axis. So, while we can
 omit the _y_ coordinate, we have to store the _sign_ of _y_ (positive or
 negative); in other words, we have to remember if it was above or
@@ -824,21 +775,19 @@ between the two possible values of _y_, we store a compressed public key
 with the prefix +02+ if the _y_ is even, and +03+ if it is odd, allowing
 the software to correctly deduce the _y_ coordinate from the _x_
 coordinate and uncompress the public key to the full coordinates of the
-point. Public key compression is illustrated in <<pubkey_compression>>.
+point. Public key compression is illustrated in [Public key compression.](#pubkey_compression).
 
+<a name="pubkey_compression"></a>**Public key compression.**
 
-[[pubkey_compression]]
-.Public key compression.
-image::images/mbc3_0408.png["pubkey_compression"]
+!["pubkey_compression"](images/mbc3_0408.png)
 
-
-Here's the same public key generated in <<public_key_derivation>>, shown as a compressed
+Here’s the same public key generated in [Public Keys](#public-keys), shown as a compressed
 public key stored in 264 bits (66 hex digits) with the prefix +03+
 indicating the _y_ coordinate is odd:
 
-----
+```
 K = 03F028892BAD7ED57D2FB57BF33081D5CFCF6F9ED3D3D7F159C2E2FFF579DC341A
-----
+```
 
 This compressed public key corresponds to the same private key, meaning
 it is generated from the same private key. However, it looks different
@@ -851,8 +800,6 @@ key can produce a public key expressed in two different formats
 (compressed and uncompressed) that produce two different Bitcoin
 addresses. However, the private key is identical for both Bitcoin
 addresses.
-
-
 
 Compressed public keys are now the default in almost all Bitcoin
 software and were required when using certain new features added
@@ -870,18 +817,16 @@ represent them is implemented slightly differently in newer Bitcoin
 wallets to indicate that these private keys have been used to produce((("public key cryptography", "compressed public keys", startref="pub-key-compress")))((("compressed public keys", startref="compress-pub-key")))((("uncompressed public keys", startref="uncompress-pub-key")))
 compressed public keys.
 
-[[addresses_for_p2sh]]
-=== Legacy Pay to Script Hash (P2SH)
+### Legacy Pay to Script Hash (P2SH)
 
-As we've ((("public key cryptography", "hash functions and", id="pub-key-hash2")))((("hash functions", "Bitcoin payments and", id="hash-payment2")))((("payments", "with hash functions", secondary-sortas="hash functions", id="payment-hash2")))((("P2SH (pay to script hash)", id="p2sh-ch4")))((("addresses", "P2SH (pay to script hash)", id="address-p2sh-ch4")))seen in preceding sections, someone receiving bitcoins (like
+As we’ve ((("public key cryptography", "hash functions and", id="pub-key-hash2")))((("hash functions", "Bitcoin payments and", id="hash-payment2")))((("payments", "with hash functions", secondary-sortas="hash functions", id="payment-hash2")))((("P2SH (pay to script hash)", id="p2sh-ch4")))((("addresses", "P2SH (pay to script hash)", id="address-p2sh-ch4")))seen in preceding sections, someone receiving bitcoins (like
 Bob) can require that payments to him contain certain constraints in their
 output script.  Bob will need to fulfill those constraints using an
-input script when he spends those bitcoins.  In <<p2pk>>, the constraint
+input script when he spends those bitcoins.  In [IP Addresses: The Original Address for Bitcoin (P2PK)](#ip-addresses:-the-original-address-for-bitcoin-(p2pk)), the constraint
 was simply that the input script needed to provide an appropriate
-signature.  In <<addresses_for_p2pkh>>, an appropriate public key also needed to be
+signature.  In [Legacy Addresses for P2PKH](#legacy-addresses-for-p2pkh), an appropriate public key also needed to be
 provided.
 
-++++
 <p class="fix_tracking3">
 For a spender (like Alice) to place the constraints Bob wants
 in the output script she uses to pay him, Bob needs to communicate those
@@ -893,38 +838,37 @@ of bytes that need to be communicated to Alice, but thousands of bytes
 for which she needs to pay transaction fees every time she wants to spend money to Bob.  However, the solution of using hash functions to create
 small commitments to large amounts of data also applies here.
 </p>
-++++
 
 The BIP16 upgrade to the Bitcoin protocol in 2012 allows an
 output script to ((("redeem scripts", id="redeem-script")))commit to a _redemption script_ (_redeem script_).  When
 Bob spends his bitcoins, his input script needs to provide a redeem script
 that matches the commitment and also any data necessary to satisfy the
-redeem script (such as signatures).  Let's start by imagining Bob wants
+redeem script (such as signatures).  Let’s start by imagining Bob wants
 to require two signatures to spend his bitcoins, one signature from his
 desktop wallet and one from a hardware signing device.  He puts those
 conditions into a redeem script:
 
-----
+```
 <public key 1> OP_CHECKSIGVERIFY <public key 2> OP_CHECKSIG
-----
+```
 
 He then creates a commitment to the redeem script using the same
 HASH160 mechanism used for P2PKH commitments, +RIPEMD160(SHA256(script))+.
 That commitment is placed into the output script using a special
 template:
 
-----
+```
 OP_HASH160 <commitment> OP_EQUAL
-----
+```
 
-[WARNING]
-====
+<dl><dt><strong>⚠️ WARNING</strong></dt><dd>
+
 When using pay to script hash (P2SH), you must use the specific P2SH template
 with no extra data or conditions in the output script.  If the
-output script is not exactly +OP_HASH160 <20 bytes> OP_EQUAL+, the
+output script is not exactly +OP_HASH160 &lt;20 bytes> OP_EQUAL+, the
 redeem script will not be used and any bitcoins may either be unspendable
 or spendable by anyone (meaning anyone can take them).
-====
+</dd></dl>
 
 When Bob goes to spend the payment he received to the commitment for his
 script, he uses an input script that includes the redeem script, with it
@@ -932,17 +876,17 @@ serialized as a single data element.  He also provides the signatures
 he needs to satisfy the redeem script, putting them in the order that
 they will be consumed by the opcodes:
 
-----
+```
 <signature2> <signature1> <redeem script>
-----
+```
 
-When Bitcoin full nodes receive Bob's spend, they'll verify that the
+When Bitcoin full nodes receive Bob’s spend, they’ll verify that the
 serialized redeem script will hash to the same value as the commitment.
-Then they'll replace it on the stack with its deserialized value:
+Then they’ll replace it on the stack with its deserialized value:
 
-----
+```
 <signature2> <signature1> <pubkey1> OP_CHECKSIGVERIFY <pubkey2> OP_CHECKSIG
-----
+```
 
 The script is executed and, if it passes and all of the other
 transaction details are correct, the transaction is valid.
@@ -952,27 +896,26 @@ base58check.  The version prefix is set to 5, which results in an
 encoded address starting with a +3+. An example of a P2SH address is
 +3F6i6kwkevjR7AsAd4te2YB2zZyASEm1HM+.
 
-[TIP]
-====
+<dl><dt><strong>💡 TIP</strong></dt><dd>
+
 P2SH is not necessarily the same as a multisignature
 transaction. A P2SH address _most often_ represents a multisignature
 script, but it might also represent a script encoding other types of
 transactions.
-====
+</dd></dl>
 
 P2PKH and P2SH are the only two script templates used with base58check
 encoding.  They are now known as legacy addresses and have become less
 common over time.
 Legacy addresses were supplanted by the bech32 family of ((("redeem scripts", startref="redeem-script")))addresses.
 
-[[p2sh_collision_attacks]]
-.P2SH Collision Attacks
-****
+<a name="p2sh_collision_attacks"></a>**P2SH Collision Attacks**
+
 All addresses ((("collision attacks", id="collision")))based on hash functions are theoretically vulnerable to an
 attacker independently finding the same input that produced the hash
 function output (commitment).  In the case of Bitcoin, if they find the
-input the same way the original user did, they'll know the user's private
-key and be able to spend that user's bitcoins.  The chance of an attacker
+input the same way the original user did, they’ll know the user’s private
+key and be able to spend that user’s bitcoins.  The chance of an attacker
 independently generating the input for an existing commitment is
 proportional to the strength of the hash algorithm.  For a secure
 160-bit algorithm like HASH160, the probability is 1-in-2^160^.  This ((("preimage attacks")))is
@@ -986,30 +929,25 @@ the HASH160 algorithm.  This is((("second preimage attacks"))) a _second preimag
 
 However, this changes when an attacker is able to influence the original input
 value. For example, an attacker participates in the creation of a
-multisignature script where they don't need to submit their public key until after they learn all of the other partys' public keys.
+multisignature script where they don’t need to submit their public key until after they learn all of the other partys' public keys.
 In that case, the strength of hash algorithm is reduced to its square
 root.  For HASH160, the probability becomes 1-in-2^80^.  This is a
 _collision attack_.
 
-// bits80=$( echo '2^80' | bc )
-// seconds_per_hour="$(( 60 * 60))"
-// bitcoin-cli getmininginfo | jq "(.networkhashps / $bits80 * $seconds_per_hour)"
-// 0.8899382363032076
-
 To put those numbers in context, as of early 2023, all Bitcoin miners
 combined execute about 2^80^ hash functions every hour.  They run a
-different hash function than HASH160, so their existing hardware can't
+different hash function than HASH160, so their existing hardware can’t
 create collision attacks for it, but the existence of the Bitcoin
 network proves that collision attacks against 160-bit functions like
 HASH160 are ((("HASH160")))practical.  Bitcoin miners have spent the equivalent of
 billions of US dollars on special hardware, so creating a collision
-attack wouldn't be cheap, but there are organizations that expect to
+attack wouldn’t be cheap, but there are organizations that expect to
 receive billions of dollars in bitcoins to addresses generated by
 processes involving multiple parties, which could make the attack
 profitable.
 
 There are well-established cryptographic protocols for preventing
-collision attacks, but a simple solution that doesn't require any
+collision attacks, but a simple solution that doesn’t require any
 special knowledge on the part of wallet developers is to simply use
 a stronger hash function.  Later upgrades to Bitcoin made that possible,
 and newer Bitcoin addresses provide at least 128 bits of collision
@@ -1019,9 +957,8 @@ Bitcoin miners about 32 billion years.
 Although we do not believe there is any immediate threat to anyone
 creating new P2SH addresses, we recommend all new wallets use newer
 types of addresses to eliminate address collision attacks((("public key cryptography", "hash functions and", startref="pub-key-hash2")))((("hash functions", "Bitcoin payments and", startref="hash-payment2")))((("payments", "with hash functions", secondary-sortas="hash functions", startref="payment-hash2")))((("P2SH (pay to script hash)", startref="p2sh-ch4")))((("addresses", "P2SH (pay to script hash)", startref="address-p2sh-ch4"))) as a concern.
-****
 
-=== Bech32 Addresses
+### Bech32 Addresses
 
 In 2017, the ((("public key cryptography", "bech32 addresses", "advantages of", id="pub-key-bech32-adv")))((("addresses", "bech32", "advantages of", id="address-bech32-adv")))((("bech32 addresses", "advantages of", id="bech32-adv")))Bitcoin protocol was upgraded.  When the upgrade is used,
 it prevents transaction
@@ -1029,17 +966,17 @@ identifiers (txids) from being changed without the consent of a spending
 user (or a quorum of signers when multiple signatures are required).
 The upgrade, ((("segregated witness (segwit)", id="segwit-bech32")))called _segregated witness_ (or _segwit_ for short),  also
 provided additional capacity for transaction data in blocks and several
-other benefits.  However, users wanting direct access to segwit's
+other benefits.  However, users wanting direct access to segwit’s
 benefits had to accept payments to new output scripts.
 
-As mentioned in <<p2sh>>, one of the advantages of the P2SH output type
-was that a spender (such as Alice) didn't need to know the details of
+As mentioned in [p2sh](#p2sh), one of the advantages of the P2SH output type
+was that a spender (such as Alice) didn’t need to know the details of
 the script the receiver (such as Bob) used.  The segwit upgrade was
 designed to use this mechanism, allowing users to
 immediately begin accessing many of the new benefits by using a P2SH
 address.  But for Bob to gain access to all of the benefits, he would
-need Alice's wallet to pay him using a different type of script.  That
-would require Alice's wallet to upgrade to support the new scripts.
+need Alice’s wallet to pay him using a different type of script.  That
+would require Alice’s wallet to upgrade to support the new scripts.
 
 At first, Bitcoin developers proposed BIP142, which would continue using
 base58check with a new version byte, similar to the P2SH upgrade.  But
@@ -1049,28 +986,25 @@ upgrade to an entirely new address format, so several Bitcoin
 contributors set out to design the best possible address format.  They
 identified several problems((("public key cryptography", "base58check encoding")))((("base58check encoding")))((("encoding", "base58check"))) with base58check:
 
-- Its mixed-case presentation made it inconvenient to read aloud or
+* Its mixed-case presentation made it inconvenient to read aloud or
   transcribe.  Try reading one of the legacy addresses in this chapter
   to a friend who you have transcribe it.  Notice how you have to prefix
   every letter with the words "uppercase" and "lowercase."  Also, note
   when you review their writing that the uppercase and lowercase
-  versions of some letters can look similar in many people's
+  versions of some letters can look similar in many people’s
   handwriting.
-
-- It can detect errors, but it can't help users correct those errors.
+* It can detect errors, but it can’t help users correct those errors.
   For example, if you accidentally transpose two characters when manually
   entering an address, your wallet will almost certainly warn that a
-  mistake exists, but it won't help you figure out where the error is
+  mistake exists, but it won’t help you figure out where the error is
   located.  It might take you several frustrating minutes to eventually
   discover the mistake.
-
-- A mixed-case alphabet also requires extra space to encode in QR codes,
+* A mixed-case alphabet also requires extra space to encode in QR codes,
   which are commonly used to share addresses and invoices
   between wallets.  That extra space means QR codes need to be larger at
   the same resolution or they become harder to scan quickly.
 
-[role="less_space pagebreak-before"]
-- It requires every spender wallet upgrade to support new protocol
+* It requires every spender wallet upgrade to support new protocol
   features like P2SH and segwit.  Although the upgrades themselves might
   not require much code, experience shows that many wallet authors are
   busy with other work and can sometimes delay upgrading for years.
@@ -1084,59 +1018,54 @@ discovered the cyclic code in 1959 and 1960 upon which bech32 is based.
 The "32" stands for the number of characters in the bech32 alphabet
 (similar to the 58 in base58check):
 
-- Bech32 uses only numbers and a single case of letters (preferably
+* Bech32 uses only numbers and a single case of letters (preferably
   rendered in lowercase).  Despite its alphabet being almost half the
   size of the base58check alphabet, a bech32 address for a pay to witness public key hash (P2WPKH) script
   is only slightly longer than a legacy address for an equivalent P2PKH
   script.
-
-- Bech32 can both detect and help correct errors.  In an address of an
+* Bech32 can both detect and help correct errors.  In an address of an
   expected length, it is mathematically guaranteed to detect any error
-  affecting four characters or less; that's more reliable than
+  affecting four characters or less; that’s more reliable than
   base58check.  For longer errors, it will fail to detect them less than
   one time in a billion, which is roughly the same reliability as
   base58check.  Even better, for an address typed with just a few
   errors, it can tell the user where those errors occurred, allowing them to
-  quickly correct minor transcription mistakes.  See <<bech32_typo_detection>>
+  quickly correct minor transcription mistakes.  See [Bech32 typo detection](#bech32_typo_detection)
   for an example of an address entered with errors.
-+
-[[bech32_typo_detection]]
-.Bech32 typo detection
-====
-Address:
-  bc1p9nh05ha8wrljf7ru236awpass:[<u><strong>n</strong></u>]4t2x0d5ctkkywmpass:[<u><strong>v</strong></u>]9sclnm4t0av2vgs4k3au7
 
-Detected errors shown in bold and underlined.  Generated using the
-https://oreil.ly/paWIx[bech32 address decoder demo].
-====
+  <a name="bech32_typo_detection"></a>**Bech32 typo detection**
 
-- Bech32 is preferably written with only lowercase characters, but those
+  Address:
+    bc1p9nh05ha8wrljf7ru236awpass:[&lt;u>&lt;strong>n&lt;/strong>&lt;/u>]4t2x0d5ctkkywmpass:[&lt;u>&lt;strong>v&lt;/strong>&lt;/u>]9sclnm4t0av2vgs4k3au7
+
+  Detected errors shown in bold and underlined.  Generated using the
+  [bech32 address decoder demo](https://oreil.ly/paWIx).
+* Bech32 is preferably written with only lowercase characters, but those
   lowercase characters can be replaced with uppercase characters before
   encoding an address in a QR code.  This allows the use of a special QR
   encoding mode that uses less space.  Notice the difference in size and
   complexity of the two QR codes for the same address in
-  <<bech32_qrcode_uc_lc>>.
-+
-[[bech32_qrcode_uc_lc]]
-.The same bech32 address QR encoded in lowercase and uppercase.
-image::images/mbc3_0409.png["The same bech32 address QR encoded in lowercase and uppercase"]
+  [The same bech32 address QR encoded in lowercase and uppercase.](#bech32_qrcode_uc_lc).
 
-- Bech32 takes advantage of an upgrade mechanism designed as part of
+  <a name="bech32_qrcode_uc_lc"></a>**The same bech32 address QR encoded in lowercase and uppercase.**
+
+  !["The same bech32 address QR encoded in lowercase and uppercase"](images/mbc3_0409.png)
+* Bech32 takes advantage of an upgrade mechanism designed as part of
   segwit to make it possible for spender wallets to be able to pay
-  output types that aren't in use yet.  The goal was to allow developers
+  output types that aren’t in use yet.  The goal was to allow developers
   to build a wallet today that allows spending to a bech32 address
   and have that wallet remain able to spend to bech32 addresses for
   users of new features added in future protocol upgrades.  It was
   hoped that we might never again need to go through the system-wide
   upgrade cycles necessary to allow people to fully use P2SH and((("public key cryptography", "bech32 addresses", "advantages of", startref="pub-key-bech32-adv")))((("addresses", "bech32", "advantages of", startref="address-bech32-adv")))((("bech32 addresses", "advantages of", startref="bech32-adv")))((("segregated witness (segwit)", startref="segwit-bech32"))) segwit.
 
-==== Problems with Bech32 Addresses
+#### Problems with Bech32 Addresses
 
 Bech32 addresses((("public key cryptography", "bech32 addresses", "problems with", id="pub-key-bech32-prob")))((("addresses", "bech32", "problems with", id="address-bech32-prob")))((("bech32 addresses", "problems with", id="bech32-prob"))) would have been a success in every area except for one
 problem.  The mathematical guarantees about their ability to detect
 errors only apply if the length of the address you enter into a wallet
 is the same length of the original address.  If you add or remove any
-characters during transcription, the guarantee doesn't apply and your
+characters during transcription, the guarantee doesn’t apply and your
 wallet may spend funds to a wrong address.  However, even without the
 guarantee, it was thought that it would be very unlikely that a user adding
 or removing characters would produce a string with a valid checksum, ensuring
@@ -1148,13 +1077,11 @@ algorithm just happened to make it very easy to add or remove the letter
 "p."  In those cases, you can also add or remove the letter "q" multiple
 times.  This will be caught by the checksum some of the time, but it
 will be missed far more often than the one-in-a-billion expectations for
-bech32's substitution errors.  For an example, see <<bech32_length_extension_example>>.
+bech32’s substitution errors.  For an example, see [Extending the length of bech32 address without invalidating its checksum](#bech32_length_extension_example).
 
-[role="less_space pagebreak-before"]
-[[bech32_length_extension_example]]
-.Extending the length of bech32 address without invalidating its checksum
-====
-----
+<a name="bech32_length_extension_example"></a>**Extending the length of bech32 address without invalidating its checksum**
+
+```
 Intended bech32 address:
 bc1pqqqsq9txsqp
 
@@ -1164,17 +1091,9 @@ bc1pqqqsq9txsqqqqqqp
 bc1pqqqsq9txsqqqqqqqqp
 bc1pqqqsq9txsqqqqqqqqqp
 bc1pqqqsq9txsqqqqqqqqqqqp
-----
-====
-//from segwit_addr import *
-//
-//for foo in range(0,1000):
-//    addr = encode('bc', 1, foo.to_bytes(3,'big'))
-//    print(foo, addr)
+```
 
-
-
-For the initial version of segwit (version 0), this wasn't a practical
+For the initial version of segwit (version 0), this wasn’t a practical
 concern.  Only two valid lengths were defined for v0 segwit outputs: 22
 bytes and 34 bytes.  Those correspond to bech32 addresses that are 42 characters
 or 62 characters long, so someone would need to add or remove the letter "q"
@@ -1183,9 +1102,9 @@ send money to an invalid address without a wallet being able to detect
 it.  However, it would become a problem for users in the future if
 a segwit-based upgrade were ever to be ((("public key cryptography", "bech32 addresses", "problems with", startref="pub-key-bech32-prob")))((("addresses", "bech32", "problems with", startref="address-bech32-prob")))((("bech32 addresses", "problems with", startref="bech32-prob")))implemented.
 
-==== Bech32m
+#### Bech32m
 
-Although((("public key cryptography", "bech32 addresses", "bech32m", id="pub-key-bech32-bech32m")))((("bech32 addresses", "bech32m", id="bech32-bech32m")))((("addresses", "bech32m", id="address-bech32m")))((("bech32m addresses", id="bech32m"))) bech32 worked well for segwit v0, developers didn't want to
+Although((("public key cryptography", "bech32 addresses", "bech32m", id="pub-key-bech32-bech32m")))((("bech32 addresses", "bech32m", id="bech32-bech32m")))((("addresses", "bech32m", id="address-bech32m")))((("bech32m addresses", id="bech32m"))) bech32 worked well for segwit v0, developers didn’t want to
 unnecessarily constrain output sizes in later versions of segwit.
 Without constraints, adding or removing a single "q" in a bech32 address
 could result in a user accidentally sending their money to an
@@ -1196,8 +1115,6 @@ would eliminate the problem, ensuring that any insertion or deletion of
 up to five characters will only fail to be detected less often than one
 time in a billion.
 
-//https://gist.github.com/sipa/a9845b37c1b298a7301c33a04090b2eb
-
 The version of bech32 with a single different constant is known as
 bech32 modified (bech32m).  All of the characters in bech32 and bech32m
 addresses for the same underlying data will be identical except for the
@@ -1205,9 +1122,7 @@ last six (the checksum).  That means a wallet will need to know which
 version is in use in order to validate the checksum, but both address
 types contain an internal version byte that makes determining that easy.
 
-
-
-To work with both bech32 and((("encoding", "bech32m addresses", id="encode-bech32m")))((("decoding", "addresses", see="addresses"))) bech32m, we'll look at the encoding and parsing rules for
+To work with both bech32 and((("encoding", "bech32m addresses", id="encode-bech32m")))((("decoding", "addresses", see="addresses"))) bech32m, we’ll look at the encoding and parsing rules for
 bech32m Bitcoin addresses since they encompass the ability to parse
 bech32 addresses and are the current recommended address format for
 Bitcoin wallets.
@@ -1215,9 +1130,8 @@ Bitcoin wallets.
 Bech32m addresses start with a human readable part (HRP).  There are
 rules in BIP173 for creating your own HRPs, but for Bitcoin you only
 need to know about the HRPs already chosen, shown in
-<<bech32_hrps_for_bitcoin>>.
+[bech32_hrps_for_bitcoin](#bech32_hrps_for_bitcoin).
 
-++++
 <table id="bech32_hrps_for_bitcoin">
 <caption>Bech32 HRPs for Bitcoin</caption>
 <thead>
@@ -1237,68 +1151,51 @@ need to know about the HRPs already chosen, shown in
 </tr>
 </tbody>
 </table>
-++++
 
 The HRP is followed by a separator, the number "1."  Earlier proposals
 for a protocol separator used a colon but some operating systems and
 applications that allow a user to double-click a word to highlight
-it for copy and pasting won't extend the highlighting to and past a
+it for copy and pasting won’t extend the highlighting to and past a
 colon.  A number ensured double-click highlighting would work with any
 program that supports bech32m strings in general (which include other
-numbers).  The number "1" was chosen because bech32 strings don't
+numbers).  The number "1" was chosen because bech32 strings don’t
 otherwise use it in order to prevent accidental transliteration between
 the number "1" and the lowercase letter "l."
 
 The other part of a bech32m address is called the "data part."  There
 are three elements to this part:
 
-Witness version::
+* **Witness version**\
   A single byte that encodes as a single character
   in a bech32m Bitcoin address immediately following the separator.
   This letter represents the segwit version.  The letter "q" is the
   encoding of "0" for segwit v0, the initial version of segwit where
   bech32 addresses were introduced.  The letter "p" is the encoding of
   "1" for segwit v1 (also called taproot) where bech32m began to be
-  used.  There are seventeen possible versions of segwit and it's
+  used.  There are seventeen possible versions of segwit and it’s
   required for Bitcoin that the first byte of a bech32m data part decode
   to the number 0 through 16 (inclusive).
-
-Witness program::
+* **Witness program**\
   From 2 to 40 bytes.  For segwit v0, this witness program
   must be either 20 or 32 bytes; no other length is valid.  For segwit
   v1, the only defined length as of this writing is 32 bytes but other
   lengths may be defined later.
-
-Checksum::
+* **Checksum**\
   Exactly 6 characters.  This is created using a BCH code, a type of
-  error correction code (although for Bitcoin addresses, we'll see later
-  that it's essential to use the checksum only for error detection--not
+  error correction code (although for Bitcoin addresses, we’ll see later
+  that it’s essential to use the checksum only for error detection--not
   correction).
-//TODO
 
-Let's illustrate these rules by walking through an example of creating
-bech32 and bech32m addresses.  For all of the following examples, we'll use the
+Let’s illustrate these rules by walking through an example of creating
+bech32 and bech32m addresses.  For all of the following examples, we’ll use the
 https://oreil.ly/gpTT6[bech32m reference code
 for Python].
 
-We'll start by generating four output scripts, one for each of the
+We’ll start by generating four output scripts, one for each of the
 different segwit outputs in use at the time of publication, plus one for
-a future segwit version that doesn't yet have a defined meaning.  The
-scripts are listed in <<scripts_for_diff_segwit_outputs>>.
+a future segwit version that doesn’t yet have a defined meaning.  The
+scripts are listed in [scripts_for_diff_segwit_outputs](#scripts_for_diff_segwit_outputs).
 
-// bc1q9d3xa5gg45q2j39m9y32xzvygcgay4rgc6aaee
-// 2b626ed108ad00a944bb2922a309844611d25468
-//
-// bc1qvj9r9egtd7mu2gemy28kpf4zefq4ssqzdzzycj7zjhk4arpavfhsct5a3p
-// 648a32e50b6fb7c5233b228f60a6a2ca4158400268844c4bc295ed5e8c3d626f
-//
-// bc1p9nh05ha8wrljf7ru236awm4t2x0d5ctkkywmu9sclnm4t0av2vgs4k3au7
-// 2ceefa5fa770ff24f87c5475d76eab519eda6176b11dbe1618fcf755bfac5311
-//
-// bc1sqqqqkfw08p
-// O_16 OP_PUSH2 0000
-
-++++
 <table id="scripts_for_diff_segwit_outputs">
 <caption>Scripts for different types of segwit outputs</caption>
 <thead>
@@ -1326,41 +1223,37 @@ scripts are listed in <<scripts_for_diff_segwit_outputs>>.
 </tr>
 </tbody>
 </table>
-++++
-
 
 For the P2WPKH output, the witness program contains a commitment constructed in exactly the same
-way as the commitment for a P2PKH output seen in <<addresses_for_p2pkh>>.  A public key is passed into a SHA256 hash
+way as the commitment for a P2PKH output seen in [Legacy Addresses for P2PKH](#legacy-addresses-for-p2pkh).  A public key is passed into a SHA256 hash
 function.  The resultant 32-byte digest is then passed into a RIPEMD-160
 hash function.  The digest of that function (the commitment) is placed
 in the witness program.
 
-For the pay to witness script hash (P2WSH) output, we don't use the P2SH algorithm.  Instead we take
+For the pay to witness script hash (P2WSH) output, we don’t use the P2SH algorithm.  Instead we take
 the script, pass it into a SHA256 hash function, and use the 32-byte
 digest of that function in the witness program.  For P2SH, the SHA256
 digest was hashed again with RIPEMD-160, but that may not be secure in
-some cases; for details, see <<p2sh_collision_attacks>>.  A result of
+some cases; for details, see [P2SH Collision Attacks](#p2sh_collision_attacks).  A result of
 using SHA256 without RIPEMD-160 is that P2WSH commitments are 32 bytes
 (256 bits) instead of 20 bytes (160 bits).
 
 For the pay-to-taproot (P2TR) output, the witness program is a point on
 the secp256k1 curve.  It may be a simple public key, but in most cases
-it should be a public key that commits to some additional data.  We'll
-learn more about that commitment in <<taproot>>.
+it should be a public key that commits to some additional data.  We’ll
+learn more about that commitment in [taproot](#taproot).
 
-++++
 <p class="fix_tracking2">
 For the example of a future segwit version, we simply use the highest
 possible segwit version number (16) and the smallest allowed witness
 program (2 bytes) with a null value.</p>
-++++
 
 Now that we know the version number and the witness program, we can
-convert each of them into a bech32 address.  Let's use the bech32m reference
+convert each of them into a bech32 address.  Let’s use the bech32m reference
 library for Python to quickly generate those addresses, and then take a
-deeper look at what's happening:
+deeper look at what’s happening:
 
-----
+```
 $ github="https://raw.githubusercontent.com"
 $ wget $github/sipa/bech32/master/ref/python/segwit_addr.py
 
@@ -1382,17 +1275,17 @@ unhexlify('2ceefa5fa770ff24f87c5475d76eab519eda6176b11dbe1618fcf755bfac5311'))
 'bc1p9nh05ha8wrljf7ru236awm4t2x0d5ctkkywmu9sclnm4t0av2vgs4k3au7'
 >>> encode('bc', 16, unhexlify('0000'))
 'bc1sqqqqkfw08p'
-----
+```
 
 If we open the file __segwit_addr.py__ and look at what the code is doing,
 the first thing we will notice
 is the sole difference between bech32 (used for segwit v0) and bech32m
 (used for later segwit versions) is the constant:
 
-----
+```
 BECH32_CONSTANT = 1
 BECH32M_CONSTANT = 0x2bc830a3
-----
+```
 
 Next we notice the code that produces the checksum.  In the final step of the
 checksum, the appropriate constant is merged into the value using an xor
@@ -1403,10 +1296,10 @@ With the checksum created, each 5-bit character in the data part
 (including the witness version, witness program, and checksum) is
 converted to alphanumeric characters.
 
-For decoding back into an output script, we work in reverse.  First let's
+For decoding back into an output script, we work in reverse.  First let’s
 use the reference library to decode two of our addresses:
 
-----
+```
 >>> help(decode)
 decode(hrp, addr)
     Decode a segwit address.
@@ -1418,52 +1311,51 @@ decode(hrp, addr)
         "bc1p9nh05ha8wrljf7ru236awm4t2x0d5ctkkywmu9sclnm4t0av2vgs4k3au7")
 >>> _[0], bytes(_[1]).hex()
 (1, '2ceefa5fa770ff24f87c5475d76eab519eda6176b11dbe1618fcf755bfac5311')
-----
+```
 
 We get back both the witness version and the witness program.  Those can
 be inserted into the template for our output script:
 
-----
+```
 <version> <program>
-----
+```
 
 For example:
 
-----
+```
 OP_0 2b626ed108ad00a944bb2922a309844611d25468
 OP_1 2ceefa5fa770ff24f87c5475d76eab519eda6176b11dbe1618fcf755bfac5311
-----
+```
 
-[WARNING]
-====
+<dl><dt><strong>⚠️ WARNING</strong></dt><dd>
+
 One
 possible mistake here to be aware of is that a witness version of `0` is
 for `OP_0`, which uses the byte 0x00--but a witness version of `1` uses
 `OP_1`, which is byte 0x51.  Witness versions `2` through `16` use 0x52
 through 0x60, respectively.
-====
+</dd></dl>
 
 When implementing bech32m encoding or decoding, we very strongly
 recommend that you use the test vectors provided in BIP350.  We also ask
 that you ensure your code passes the test vectors related to paying future segwit
-versions that haven't been defined yet.  This will help make your
-software usable for many years to come even if you aren't able to add
+versions that haven’t been defined yet.  This will help make your
+software usable for many years to come even if you aren’t able to add
 support for new Bitcoin features as soon as they become ((("public key cryptography", "bech32 addresses", "bech32m", startref="pub-key-bech32-bech32m")))((("bech32 addresses", "bech32m", startref="bech32-bech32m")))((("addresses", "bech32m", startref="address-bech32m")))((("bech32m addresses", startref="bech32m")))((("encoding", "bech32m addresses", startref="encode-bech32m")))available.
 
-[[priv_formats]]
-==== Private Key Formats
+#### Private Key Formats
 
 The ((("private keys", "formats", id="private-key-format")))private key
 can be represented in a number of different formats, all of which
-correspond to the same 256-bit number. <<table_4-2>> shows several common
+correspond to the same 256-bit number. [table_4-2](#table_4-2) shows several common
 formats used to represent private keys. Different formats are used in
 different circumstances. Hexadecimal and raw binary formats are used
 internally in software and rarely shown to users. The WIF is used for
 import/export of keys between wallets and often used in QR code
 (barcode) representations of private keys.
 
-.Modern Relevancy of Private Key Formats
-****
+**Modern Relevancy of Private Key Formats**
+
 Early Bitcoin ((("wallets", "private key formats")))wallet software generated one or more independent private
 keys when a new user wallet was initialized.  When the initial set of
 keys had all been used, the wallet might generate additional private
@@ -1483,11 +1375,8 @@ wallets support the ability to export or import an individual key.  The
 information in this section is mainly of interest to anyone needing
 compatibility with early Bitcoin wallets.
 
-See <<hd_wallets>> for more information.
+See [hd_wallets](#hd_wallets) for more information.
 
-****
-
-++++
 <table id="table_4-2">
 <caption>Private key representations (encoding formats)</caption>
 <thead>
@@ -1515,11 +1404,9 @@ See <<hd_wallets>> for more information.
 </tr>
 </tbody>
 </table>
-++++
 
-<<table_4-3>> shows the private key generated in several different formats.
+[table_4-3](#table_4-3) shows the private key generated in several different formats.
 
-++++
 <table id="table_4-3">
 <caption>Example: Same key, different formats</caption>
 <thead>
@@ -1543,19 +1430,17 @@ See <<hd_wallets>> for more information.
 </tr>
 </tbody>
 </table>
-++++
 
 All of these representations are different ways of showing the same
 number, the same private key. They look different, but any one format
 can easily be converted to any other((("private keys", "formats", startref="private-key-format"))) format.
 
-[[comp_priv]]
-==== Compressed Private Keys
+#### Compressed Private Keys
 
 The commonly((("private keys", "compressed", id="private-key-compress")))((("compressed private keys", id="compress-private-key"))) used term "compressed private key" is a misnomer, because when a private
 key is exported as WIF-compressed, it is actually one byte _longer_ than
 an "uncompressed" private key. That is because the private key has an
-added one-byte suffix (shown as 01 in hex in <<table_4-4>>), which
+added one-byte suffix (shown as 01 in hex in [table_4-4](#table_4-4)), which
 signifies that the private key is from a newer wallet and should only be
 used to produce compressed public keys. Private keys are not themselves
 compressed and cannot be compressed. The term _compressed private key_
@@ -1566,9 +1451,8 @@ should only refer to the export format as "WIF-compressed" or "WIF" and
 not refer to the private key itself as "compressed" to avoid further
 confusion
 
-<<table_4-4>> shows the same key, encoded in WIF and WIF-compressed formats.
+[table_4-4](#table_4-4) shows the same key, encoded in WIF and WIF-compressed formats.
 
-++++
 <table id="table_4-4">
 <caption>Example: Same key, different formats</caption>
 <thead>
@@ -1596,7 +1480,6 @@ confusion
 </tr>
 </tbody>
 </table>
-++++
 
 Notice that the hex-compressed private key format has one extra byte at
 the end (01 in hex). While the base58 encoding version prefix is the
@@ -1630,13 +1513,13 @@ key. The resulting base58check-encoded private key is called a
 starting with "5," as is the case with WIF-encoded (uncompressed) keys
 from((("private keys", "compressed", startref="private-key-compress")))((("compressed private keys", startref="compress-private-key"))) older wallets.
 
-=== Advanced Keys and Addresses
+### Advanced Keys and Addresses
 
 In the
 following sections we will look at advanced forms of keys and addresses,
 such as vanity addresses and paper wallets.
 
-==== Vanity Addresses
+#### Vanity Addresses
 
 Vanity((("public key cryptography", "vanity addresses", id="pub-key-vanity")))((("vanity addresses", id="vanity-addr")))((("addresses", "vanity", id="address-vanity"))) addresses are valid Bitcoin
 addresses that contain human-readable messages. For example,
@@ -1658,26 +1541,25 @@ elliptic curve cryptography (ECC) and secure hash algorithm (SHA) as any other a
 no more easily find the private key of an address starting with a vanity
 pattern than you can any other address.
 
-Eugenia is a children's
-charity director operating in the Philippines. Let's say that Eugenia is
+Eugenia is a children’s
+charity director operating in the Philippines. Let’s say that Eugenia is
 organizing a fundraising drive and wants to use a vanity Bitcoin
 address to publicize the fundraising. Eugenia will create a vanity
-address that starts with "1Kids" to promote the children's charity
-fundraiser. Let's see how this vanity address will be created and what
-it means for the security of Eugenia's charity.
+address that starts with "1Kids" to promote the children’s charity
+fundraiser. Let’s see how this vanity address will be created and what
+it means for the security of Eugenia’s charity.
 
-===== Generating vanity addresses
+##### Generating vanity addresses
 
-It's important to realize that a Bitcoin address is simply a number
+It’s important to realize that a Bitcoin address is simply a number
 represented by symbols in the base58 alphabet. The search for a pattern
 like "1Kids" can be seen as searching for an address in the range from
 +1Kids11111111111111111111111111111+ to
 +1Kidszzzzzzzzzzzzzzzzzzzzzzzzzzzzz+. There are approximately 58^29^
 (approximately 1.4 × 10^51^) addresses in that range, all starting with
-"1Kids." <<table_4-11>> shows the range of addresses that have the
+"1Kids." [table_4-11](#table_4-11) shows the range of addresses that have the
 prefix 1Kids.
 
-++++
 <table id="table_4-11">
 <caption>The range of vanity addresses starting with “1Kids”</caption>
 <tbody>
@@ -1703,14 +1585,12 @@ prefix 1Kids.
 </tr>
 </tbody>
 </table>
-++++
 
-Let's look at the pattern "1Kids" as a number and see how frequently we
-might find this pattern in a Bitcoin address (see <<table_4-12>>). An
+Let’s look at the pattern "1Kids" as a number and see how frequently we
+might find this pattern in a Bitcoin address (see [table_4-12](#table_4-12)). An
 average desktop computer PC, without any specialized hardware, can
 search approximately 100,000 keys per second.
 
-++++
 <table id="table_4-12">
 <caption>The frequency of a vanity pattern (1KidsCharity) and average search time on a desktop PC</caption>
 <thead>
@@ -1790,9 +1670,8 @@ search approximately 100,000 keys per second.
 </tr>
 </tbody>
 </table>
-++++
 
-As you can see, Eugenia won't be creating the vanity address
+As you can see, Eugenia won’t be creating the vanity address
 "1KidsCharity" anytime soon, even if she had access to several thousand
 computers. Each additional character increases the difficulty by a
 factor of 58. Patterns with more than seven characters are usually found
@@ -1802,7 +1681,7 @@ Vanity searches on GPU systems are many orders of magnitude
 faster than on a general-purpose CPU.
 
 Another((("vanity pools"))) way to find a vanity address is to outsource the work to a pool
-of vanity miners. A https://oreil.ly/99K81[vanity pool] is a service that
+of vanity miners. A [vanity pool](https://oreil.ly/99K81) is a service that
 allows those with fast hardware to earn bitcoin searching for vanity
 addresses for others. For a fee, Eugenia can outsource the search for a
 seven-character pattern vanity address and get results in a few hours
@@ -1812,23 +1691,24 @@ Generating a vanity address is a brute-force exercise: try a random key,
 check the resulting address to see if it matches the desired pattern,
 repeat until successful.
 
-===== Vanity address security and privacy
+##### Vanity address security and privacy
 
 Vanity addresses((("privacy", "vanity addresses", id="privacy-vanity"))) were popular in the
 early years of Bitcoin but have almost entirely disappeared from use as
 of 2023.  There are two likely causes for this trend:
 
-Deterministic wallets:: As we saw in <<recovery_code_intro>>, it's possible to
+* **Deterministic wallets**\
+As we saw in [recovery_code_intro](#recovery_code_intro), it’s possible to
 back up every key in most modern wallets by simply writing down a few
 words or characters.  This is achieved by deriving every key in the
 wallet from those words or characters using a deterministic algorithm.
-It's not possible to use vanity addresses with a deterministic wallet
+It’s not possible to use vanity addresses with a deterministic wallet
 unless the user backs up additional data for every vanity address they
 create.  More practically, most wallets using deterministic key
-generation simply don't allow importing a private key or key tweak from
+generation simply don’t allow importing a private key or key tweak from
 a vanity generator.
-
-Avoiding address reuse:: Using a vanity address to receive multiple
+* **Avoiding address reuse**\
+Using a vanity address to receive multiple
 payments to the same address creates a link between all of those
 payments.  This might be acceptable to Eugenia if her nonprofit needs
 to report its income and expenditures to a tax authority anyway.
@@ -1837,40 +1717,36 @@ receive payments from her.  For example, Alice may want to donate
 anonymously and Bob may not want his other customers to know that he
 gives discount pricing to Eugenia.
 
-// https://github.com/MakisChristou/vanitybech
-
-We don't expect to see many vanity addresses in
+We don’t expect to see many vanity addresses in
 the future unless the preceding problems are((("addresses", "vanity", startref="address-vanity")))((("vanity addresses", startref="vanity-addr")))((("public key cryptography", "vanity addresses", startref="pub-key-vanity"))) solved.
 
-[[paper_wallets]]
-==== Paper Wallets
+#### Paper Wallets
 
 Paper wallets((("public key cryptography", "paper wallets", id="pub-key-paper")))((("paper wallets", id="paper-wallet")))((("wallets", "paper", id="wallet-paper"))) are private keys printed on paper.
 Often the paper wallet also includes the corresponding Bitcoin address
 for convenience, but this is not necessary because it can be derived
 from the private key.
 
-[WARNING]
-====
+<dl><dt><strong>⚠️ WARNING</strong></dt><dd>
+
 Paper wallets are an OBSOLETE technology and are dangerous for most
 users. There are many subtle pitfalls involved in generating them, not least of which is the possibility that the generating code is compromised
 with a "back door." Many bitcoins have been stolen this way. Paper
 wallets are shown here for informational purposes only and should not be
 used for storing bitcoin. Use a recovery code to back up your
 keys, possibly with a hardware signing device to store keys and sign transactions. DO NOT
-USE PAPER [.keep-together]#WALLETS.#
-====
-
+USE PAPER WALLETS.
+</dd></dl>
 
 Paper wallets come in many designs and sizes, with many different
-features. <<paper_wallet_simple>> shows a sample paper wallet.
+features. [An example of a simple paper wallet.](#paper_wallet_simple) shows a sample paper wallet.
 
-[[paper_wallet_simple]]
-.An example of a simple paper wallet.
-image::images/mbc3_0410.png[]
+<a name="paper_wallet_simple"></a>**An example of a simple paper wallet.**
+
+![mbc3_0410](images/mbc3_0410.png)
 
 Some are intended to be given as gifts and have seasonal themes, such as
-Christmas and New Year's. Others are designed for storage in a
+Christmas and New Year’s. Others are designed for storage in a
 bank vault or safe with the private key hidden in some way, either with
 opaque scratch-off stickers or folded and sealed with tamper-proof
 adhesive foil.  Other designs feature additional copies of the key and
@@ -1880,10 +1756,10 @@ other natural disasters.
 
 From the original public-key focused design of Bitcoin to modern addresses
 and scripts like bech32m and pay to taproot--and even addresses for
-future Bitcoin upgrades--you've learned how the Bitcoin protocol allows
+future Bitcoin upgrades--you’ve learned how the Bitcoin protocol allows
 spenders to identify the wallets that should receive their payments.
-But when it's actually your wallet receiving the payments, you're going
-to want the assurance that you'll still have access to that money even
-if something happens to your wallet data.  In the next chapter, we'll
+But when it’s actually your wallet receiving the payments, you’re going
+to want the assurance that you’ll still have access to that money even
+if something happens to your wallet data.  In the next chapter, we’ll
 look at how Bitcoin wallets are designed to protect their funds ((("public key cryptography", "paper wallets", startref="pub-key-paper")))((("paper wallets", startref="paper-wallet")))((("wallets", "paper", startref="wallet-paper")))from a
 variety of threats.

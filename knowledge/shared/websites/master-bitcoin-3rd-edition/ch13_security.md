@@ -1,9 +1,8 @@
-[[ch11]]
-== Bitcoin Security
+## Bitcoin Security
 
 Securing your bitcoins is challenging because bitcoins are
 are not like a balance in a bank account. Your bitcoins are very
-much like digital cash or gold. You've probably heard the expression,
+much like digital cash or gold. You’ve probably heard the expression,
 "Possession is nine-tenths of the law." Well, in Bitcoin, possession is
 ten-tenths of the law. Possession of the keys to spend certain bitcoins is
 equivalent to possession of cash or a chunk of precious metal. You can
@@ -14,11 +13,11 @@ within the protocol, just as if they dropped cash on a public sidewalk.
 However, the Bitcoin system has capabilities that cash, gold, and bank accounts do
 not. A Bitcoin wallet, containing your keys, can be backed up like any
 file. It can be stored in multiple copies, even printed on paper for
-hard-copy backup. You can't "back up" cash, gold, or bank accounts.
+hard-copy backup. You can’t "back up" cash, gold, or bank accounts.
 Bitcoin is different enough from anything that has come before that we
 need to think about securing our bitcoins in a novel way too.
 
-=== Security Principles
+### Security Principles
 
 The ((("Bitcoin", "security", "principles of", id="bitcoin-security-principle")))((("security", "principles of", id="security-principle")))((("decentralized consensus", "as security principle", secondary-sortas="security principle", id="decentral-consensus-principle")))core principle in Bitcoin is
 decentralization and it has important implications for security. A
@@ -31,7 +30,7 @@ and no encryption is required for Bitcoin traffic (although encryption
 can still be useful).
 
 On a traditional payment network, such as a credit card system, the
-payment is open-ended because it contains the user's private identifier
+payment is open-ended because it contains the user’s private identifier
 (the credit card number). After the initial charge, anyone with access
 to the identifier can "pull" funds and charge the owner again and again.
 Thus, the payment network has to be secured end-to-end with encryption
@@ -52,26 +51,26 @@ encrypted or protected from eavesdropping. In fact, you can broadcast
 Bitcoin transactions over an open public channel, such as unsecured WiFi
 or Bluetooth, with no loss of security.
 
-Bitcoin's decentralized security model puts a lot of power in the hands
+Bitcoin’s decentralized security model puts a lot of power in the hands
 of the users. With that power comes responsibility for maintaining the
 secrecy of their keys. For most users that is not easy to do, especially
 on general-purpose computing devices such as internet-connected
-smartphones or laptops. Although Bitcoin's decentralized model prevents
+smartphones or laptops. Although Bitcoin’s decentralized model prevents
 the type of mass compromise seen with credit cards, many users are not
 able to adequately secure their keys and get hacked, one by one.
 
-==== Developing Bitcoin Systems Securely
+#### Developing Bitcoin Systems Securely
 
 A critical principle
 for Bitcoin developers is decentralization. Most developers will be
 familiar with centralized security models and might be tempted to apply
 these models to their Bitcoin applications, with disastrous results.
 
-Bitcoin's security relies on decentralized control over keys and on
+Bitcoin’s security relies on decentralized control over keys and on
 independent transaction validation by users. If you want to leverage
-Bitcoin's security, you need to ensure that you remain within the
-Bitcoin security model. In simple terms: don't take control of keys away
-from users and don't outsource validation.
+Bitcoin’s security, you need to ensure that you remain within the
+Bitcoin security model. In simple terms: don’t take control of keys away
+from users and don’t outsource validation.
 
 For example, many early Bitcoin exchanges concentrated all user funds in
 a single "hot" wallet with keys stored on a single server. Such a design
@@ -82,15 +81,15 @@ for their customers.
 Unless you are prepared to invest heavily in operational security,
 multiple layers of access control, and audits (as the traditional banks
 do), you should think very carefully before taking funds outside of
-Bitcoin's decentralized security context. Even if you have the funds and
+Bitcoin’s decentralized security context. Even if you have the funds and
 discipline to implement a robust security model, such a design merely
 replicates the fragile model of traditional financial networks, plagued
 by identity theft, corruption, and embezzlement. To take advantage of
-Bitcoin's unique decentralized security model, you have to avoid the
+Bitcoin’s unique decentralized security model, you have to avoid the
 temptation of centralized architectures that might feel familiar but
-ultimately subvert Bitcoin's ((("decentralized consensus", "as security principle", secondary-sortas="security principle", startref="decentral-consensus-principle")))security.
+ultimately subvert Bitcoin’s ((("decentralized consensus", "as security principle", secondary-sortas="security principle", startref="decentral-consensus-principle")))security.
 
-==== The Root of Trust
+#### The Root of Trust
 
 Traditional ((("root of trust", id="root-trust")))security architecture is based
 upon a concept called the _root of trust_, which is a trusted core used
@@ -142,7 +141,7 @@ invested trust explicitly in numerous components outside the Bitcoin
 blockchain, such as hot wallets, centralized databases,
 vulnerable encryption keys, and ((("Bitcoin", "security", "principles of", startref="bitcoin-security-principle")))((("security", "principles of", startref="security-principle")))((("root of trust", startref="root-trust")))similar schemes.
 
-=== User Security Best Practices
+### User Security Best Practices
 
 Humans ((("Bitcoin", "security", "best practices", id="bitcoin-security-best-practice")))((("security", "best practices", id="security-best-practice")))((("best practices, security", id="best-practice-security")))have
 used physical security controls for thousands of years. By comparison,
@@ -151,7 +150,7 @@ general-purpose operating systems are not very secure and not
 particularly suited to storing digital money. Our computers are
 constantly exposed to external threats via always-on internet
 connections. They run thousands of software components from hundreds of
-authors, often with unconstrained access to the user's files. A single
+authors, often with unconstrained access to the user’s files. A single
 piece of rogue software, among the many thousands installed on your
 computer, can compromise your keyboard and files, stealing any bitcoins
 stored in wallet applications. The level of computer maintenance
@@ -169,13 +168,13 @@ hackers had to convert identity information or account tokens—such as
 credit cards and bank accounts—into value after compromising them.
 Despite the difficulty of fencing and laundering financial information,
 we have seen ever-escalating thefts. Bitcoin escalates this problem
-because it doesn't need to be fenced or laundered; bitcoins are valuable
+because it doesn’t need to be fenced or laundered; bitcoins are valuable
 by themselves.
 
 Bitcoin also creates the incentives to improve computer
 security. Whereas previously the risk of computer compromise was vague
 and indirect, Bitcoin makes these risks clear and obvious. Holding
-bitcoins on a computer serves to focus the user's mind on the need for
+bitcoins on a computer serves to focus the user’s mind on the need for
 improved computer security. As a direct result of the proliferation and
 increased adoption of Bitcoin and other digital currencies, we have seen
 an escalation in both hacking techniques and security solutions. In
@@ -188,7 +187,7 @@ the form of hardware encryption, key storage and hardware signing devices,
 multisignature technology, and digital escrow. In the following sections
 we will examine various best practices for practical user security.
 
-==== Physical Bitcoin Storage
+#### Physical Bitcoin Storage
 
 Because most ((("bitcoins", "physical storage")))((("physical bitcoin storage")))((("storing bitcoins", id="storing-bitcoin")))users are far more
 comfortable with physical security than information security, a very
@@ -206,7 +205,7 @@ generated on an offline system (one never connected to the internet) and
 stored offline either on paper or on digital media, such as a USB memory
 stick.
 
-==== Hardware Signing Devices
+#### Hardware Signing Devices
 
 In the ((("hardware signing devices")))long term, Bitcoin security may increasingly take the
 form of tamper-proof hardware signing devices. Unlike a smartphone or desktop
@@ -217,7 +216,7 @@ with limited interfaces, hardware signing devices can deliver strong
 security to nonexpert users. Hardware
 signing devices may become the predominant method of storing bitcoins.
 
-==== Ensuring Your Access
+#### Ensuring Your Access
 
 Although
 most users ((("backing up", "importance of")))are rightly concerned about theft of their bitcoins, there is an even
@@ -231,19 +230,19 @@ they accidentally lost the encryption keys, making the backups worthless
 and losing a fortune. Like hiding money by burying it in the desert, if
 you secure your bitcoins too well you might not be able to find them again.
 
-[WARNING]
-====
+<dl><dt><strong>⚠️ WARNING</strong></dt><dd>
+
 To spend bitcoins, you may((("wallets", "recovery codes")))((("recovery codes"))) need to back up more than just your private
 keys or the BIP32 seed used to derive them.  This is especially the case
 when multisignatures or complex scripts are being used.  Most output
 scripts commit to the actual conditions that must be fulfilled to spend
-the bitcoins in that output, and it's not possible to fulfill that
+the bitcoins in that output, and it’s not possible to fulfill that
 commitment unless your wallet software can reveal those conditions to
 the network.  Wallet recovery codes must include this information.  For
-more details, see <<ch05_wallets>>.
-====
+more details, see [ch05_wallets](#ch05_wallets).
+</dd></dl>
 
-==== Diversifying Risk
+#### Diversifying Risk
 
 Would you((("risk diversification")))((("storing bitcoins", startref="storing-bitcoin"))) carry your entire net worth in cash in your wallet? Most
 people would consider that reckless, yet Bitcoin users often keep all
@@ -254,7 +253,7 @@ mobile wallet as "pocket change." The rest should be split between a few
 different storage mechanisms, such as a desktop wallet and offline (cold
 storage).
 
-==== Multisig and Governance
+#### Multisig and Governance
 
 Whenever a ((("multisignature addresses")))((("addresses", "multisignature")))company or individual stores large amounts of
 bitcoins, they should consider using a multisignature Bitcoin address.
@@ -267,15 +266,14 @@ single person can compromise the funds. Multisignature addresses can
 also offer redundancy, where a single person holds several keys that are
 stored in different locations.
 
-
-==== Survivability
+#### Survivability
 
 One important
 security ((("survivability (of bitcoin access)")))((("estate planning")))consideration that is often overlooked is availability,
 especially in the context of incapacity or death of the key holder.
 Bitcoin users are told to use complex passwords and keep their keys
 secure and private, not sharing them with anyone. Unfortunately, that
-practice makes it almost impossible for the user's family to recover any
+practice makes it almost impossible for the user’s family to recover any
 funds if the user is not available to unlock them. In most cases, in
 fact, the families of Bitcoin users might be completely unaware of the
 existence of the bitcoin funds.
