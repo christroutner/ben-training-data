@@ -1,0 +1,4 @@
+## Balancing Security and Accessibility
+While theft prevention is a legitimate concern, users must balance security with accessibility. Overzealous security measures can lead to permanent loss of funds. A notable example occurred in July 2011, when a bitcoin education project lost approximately 7,000 bitcoin after implementing complex encrypted backups but subsequently losing the encryption keys.
+
+Risk diversification provides a more balanced approach to security. Rather than storing all Bitcoin Cash in a single wallet, users should distribute holdings across multiple security solutions. A prudent strategy might keep only 5% of funds in online or mobile wallets for daily use, with the remainder split between desktop wallets and offline cold storage solutions.

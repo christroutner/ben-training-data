@@ -1,0 +1,9 @@
+# Simplified Payment Verification (SPV) Nodes
+
+Many Bitcoin Cash clients run on resource-constrained devices like smartphones and tablets, making it impractical to store the full blockchain. For these devices, Simplified Payment Verification (SPV) allows operation without storing complete blockchain data. SPV nodes, also called lightweight clients, download only block headers without the transactions, resulting in a chain approximately 1,000 times smaller than the full blockchain.
+
+Instead of constructing a complete picture of all available UTXOs, SPV nodes verify transactions using a methodology that relies on peers to provide partial views of relevant blockchain parts on demand. They verify transactions by reference to their depth in the blockchain rather than their height. When examining a transaction in block 300,000, an SPV node establishes a link between the transaction and its containing block using a merkle path, then verifies it by confirming six blocks (300,001 through 300,006) have been built on top, proving by proxy that the transaction wasn't a double-spend.
+
+While SPV nodes can definitively prove a transaction exists in a block, they cannot verify that a transaction doesn't exist, creating vulnerability to denial-of-service or double-spending attacks. To mitigate this risk, SPV nodes typically connect randomly to several nodes to increase the probability of connecting to at least one honest node. However, this random connection pattern also makes them vulnerable to network partitioning or Sybil attacks where they might connect to fake nodes without access to the real Bitcoin Cash network.
+
+For most practical applications, well-connected SPV nodes provide adequate security, balancing resource needs, practicality, and security. However, for maximum security, running a full blockchain node remains the gold standard.

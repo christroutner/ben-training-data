@@ -1,0 +1,5 @@
+# The Bitcoin Cash P2P Network Architecture
+
+Bitcoin Cash operates on a peer-to-peer (P2P) network where all participating computers are equal peers. This flat topology has no central servers or hierarchical structure, making the network inherently resilient, decentralized, and open. The decentralization of control is a core design principle of Bitcoin Cash that can only be achieved through a flat, decentralized P2P consensus network.
+
+While the term "Bitcoin Cash network" specifically refers to nodes running the Bitcoin Cash P2P protocol, the extended network includes additional protocols like Stratum, which supports mining and lightweight mobile wallets. These additional protocols connect to the main network through gateway routing servers that bridge different protocols together. The overall system, including the Bitcoin Cash P2P protocol and all other related protocols, is called the "extended Bitcoin Cash network."

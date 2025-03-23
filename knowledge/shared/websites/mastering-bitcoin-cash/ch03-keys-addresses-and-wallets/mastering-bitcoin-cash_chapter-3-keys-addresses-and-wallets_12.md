@@ -1,0 +1,7 @@
+## Vanity Addresses and Specialized Keys
+
+Vanity addresses are valid Bitcoin Cash addresses containing human-readable patterns, like "1Love..." or "1Kids...". Creating these requires generating and testing billions of private keys until one produces an address with the desired pattern. The difficulty increases exponentially with each additional character in the pattern – finding a four-character vanity pattern takes minutes on a desktop PC, while a seven-character pattern could take months.
+
+Vanity addresses can enhance security by making addresses more distinctive and memorable, but they're also a double-edged sword. While they make it harder for attackers to substitute their own addresses undetected, they also enable attackers to create addresses resembling legitimate ones. The security benefit comes from forcing attackers to generate longer matching patterns, which becomes prohibitively expensive as length increases.
+
+Vanity addresses are no more or less secure cryptographically than random addresses – they're simply more recognizable. However, they do increase the effort required for attackers to create convincing forgeries, as each additional character in the pattern increases the computational work by a factor of 58 (the number of characters in the Base58 alphabet used for Bitcoin Cash addresses).

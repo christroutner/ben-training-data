@@ -1,0 +1,6 @@
+## Computer Security Challenges
+General-purpose operating systems present significant security challenges for Bitcoin Cash users. Modern computers maintain constant internet connections and run thousands of software components from hundreds of authors, each potentially having access to user files. A single malicious program can compromise keyboards and files, potentially stealing Bitcoin Cash from wallet applications.
+
+Despite decades of information security advancements, digital assets remain vulnerable to determined adversaries. Bitcoin Cash creates digital assets with intrinsic value that can be stolen and transferred instantly and irrevocably, creating massive incentives for hackers. Unlike traditional financial theft requiring conversion of stolen credentials to value, Bitcoin Cash represents immediate value, eliminating the need for fencing or laundering.
+
+This increased risk has fortunately accelerated innovation in security solutions. Direct response to cryptocurrency adoption has produced advances in hardware encryption, secure key storage, hardware wallets, multi-signature technology, and digital escrow systems—all creating more robust protection options for users.

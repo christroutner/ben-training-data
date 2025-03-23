@@ -1,0 +1,7 @@
+# The UTXO Database
+
+Some implementations of the Bitcoin Cash client maintain a UTXO database or UTXO pool, which contains all unspent outputs on the blockchain. Despite the similar name, the UTXO pool differs significantly from the transaction pool. Unlike the transaction and orphan pools that initialize empty, the UTXO pool contains millions of unspent transaction outputs dating back to 2009, stored either in local memory or as an indexed database table on persistent storage.
+
+The UTXO pool represents the emergent consensus of the network and therefore varies little between nodes, unlike transaction and orphan pools that reflect a single node's local perspective and can differ significantly depending on when nodes were started or restarted. Furthermore, while transaction and orphan pools contain only unconfirmed transactions, the UTXO pool contains only confirmed outputs.
+
+This database is essential for nodes to validate new transactions efficiently by checking whether the transaction inputs reference legitimate unspent outputs. By maintaining the set of all spendable outputs, nodes can quickly verify that a transaction is spending outputs that exist and are available to be spent, without having to scan the entire blockchain for this information each time.

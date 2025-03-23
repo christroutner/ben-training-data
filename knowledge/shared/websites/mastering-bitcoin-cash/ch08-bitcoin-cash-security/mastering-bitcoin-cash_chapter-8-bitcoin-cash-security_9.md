@@ -1,0 +1,4 @@
+## Multi-signature Security
+For individuals and organizations storing large amounts of Bitcoin Cash, multi-signature addresses provide robust protection. These addresses require multiple private keys to authorize transactions, distributing security responsibility across different people and locations.
+
+In corporate environments, keys should be generated independently and held by several executives to prevent compromise by any single individual. This approach can also provide redundancy, where individual keyholders maintain multiple keys stored in different locations. Multi-signature setups allow flexible security policies, such as requiring any 3 signatures from a group of 5 authorized signers.

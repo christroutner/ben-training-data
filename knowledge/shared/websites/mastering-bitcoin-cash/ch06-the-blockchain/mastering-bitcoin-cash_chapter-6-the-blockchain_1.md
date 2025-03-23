@@ -1,0 +1,7 @@
+# The Blockchain Data Structure
+
+The blockchain is an ordered, back-linked list of blocks containing transactions. Nodes store it as a flat file or in a database (Bitcoin ABC uses Google's LevelDB). Each block links to its predecessor via a hash reference in its header, creating a chain that extends back to the first block, known as the genesis block. This structure leads to terminology like "height" (distance from genesis) and "tip" (most recently added block).
+
+Each block is uniquely identified by a SHA256 cryptographic hash of its header, and references its parent block through the "previous block hash" field. While a block has only one parent, it may temporarily have multiple children during a blockchain "fork" when different miners discover blocks simultaneously. Eventually, only one child becomes part of the canonical blockchain.
+
+The parent-child relationship is critical to blockchain immutability. If a parent block changes, its hash changes, requiring changes to the child's "previous block hash" pointer, which changes the child's hash, and so on through all subsequent blocks. This cascade effect makes deep blockchain history practically immutable, as changing a block buried under many subsequent blocks would require recalculating all following blocks—an enormous computational task.

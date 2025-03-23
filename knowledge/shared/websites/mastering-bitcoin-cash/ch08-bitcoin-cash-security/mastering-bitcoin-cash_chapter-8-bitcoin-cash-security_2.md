@@ -1,0 +1,4 @@
+## Decentralized vs. Centralized Security Models
+Traditional payment networks like credit cards use open-ended payments containing user identifiers that can be reused for multiple charges. This necessitates end-to-end encryption to prevent compromise of both current transactions and payment tokens. When breached, users face identity theft risks and must take protective actions.
+
+Bitcoin Cash transactions, in contrast, authorize only specific values to specific recipients without revealing private information. These transactions cannot be reused or modified, eliminating the need for encrypted transmission. You can safely broadcast Bitcoin Cash transactions over open channels like unsecured WiFi with no security loss. However, this decentralized model requires users to securely manage their private keys—a task many find challenging on general-purpose computing devices.

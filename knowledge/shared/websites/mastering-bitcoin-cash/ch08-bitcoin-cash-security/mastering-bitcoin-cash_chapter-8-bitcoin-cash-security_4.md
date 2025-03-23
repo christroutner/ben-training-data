@@ -1,0 +1,6 @@
+## Root of Trust Architecture
+Traditional security architecture builds upon a "root of trust"—a trusted core that serves as the foundation for the overall system. Security extends outward in concentric circles from this core, with each layer building upon more trusted inner layers through controls, signatures, and encryption. This approach places most trust in the least complex parts of the system, which are theoretically less vulnerable.
+
+Bitcoin Cash fundamentally changes this model. Its decentralized consensus system creates a trusted public ledger using the genesis block as the root of trust, extending up to the current block. Bitcoin Cash applications should use the blockchain as their root of trust rather than any other component. When designing complex applications, carefully examine where trust is being placed—ultimately, only a fully validated blockchain should be explicitly trusted.
+
+To evaluate security architecture, consider how your application would function if individual components were compromised by malicious actors. A properly designed Bitcoin Cash application should only be vulnerable to compromises of the Bitcoin Cash consensus mechanism itself, with its root of trust firmly based on the blockchain.

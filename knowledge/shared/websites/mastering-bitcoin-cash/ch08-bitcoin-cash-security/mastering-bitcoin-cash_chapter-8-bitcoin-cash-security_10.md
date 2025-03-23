@@ -1,0 +1,4 @@
+## Inheritance and Continuity Planning
+An often overlooked but critical security consideration is fund availability in case of the keyholder's incapacity or death. The standard practice of using complex passwords and keeping keys private can inadvertently make funds inaccessible to family members, who may not even be aware of the cryptocurrency holdings.
+
+Users with significant Bitcoin Cash holdings should consider sharing access details with trusted relatives or specialized lawyers. More sophisticated continuity plans can implement multi-signature arrangements with designated "digital asset executors" who can help recover funds when needed. This balanced approach ensures both security during the user's lifetime and appropriate access for heirs afterward.

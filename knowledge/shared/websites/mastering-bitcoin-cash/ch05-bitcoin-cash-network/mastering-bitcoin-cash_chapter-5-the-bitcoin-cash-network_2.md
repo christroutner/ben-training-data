@@ -1,0 +1,7 @@
+# Node Types and Roles in the Network
+
+A Bitcoin Cash node is a collection of functions: routing, blockchain database, mining, and wallet services. All nodes include the routing function for network participation, validating and propagating transactions and blocks while discovering and maintaining peer connections. However, nodes may specialize in different roles based on their configuration and capabilities.
+
+Full nodes maintain a complete and up-to-date copy of the blockchain, enabling them to autonomously and authoritatively verify any transaction without external reference. In contrast, lightweight nodes (SPV nodes) maintain only a subset of the blockchain, verifying transactions using Simplified Payment Verification. Mining nodes compete to create new blocks using specialized hardware to solve the proof-of-work algorithm, with some being full nodes and others being lightweight nodes that participate in pool mining. Wallet functionality can be part of a full node or operate as an SPV node, particularly on resource-constrained devices like smartphones.
+
+Additionally, the extended Bitcoin Cash network includes specialized servers and nodes running other protocols, such as mining pool protocols and lightweight client-access protocols. Large companies often interface with the Bitcoin Cash network by running full nodes without mining or wallet functions, acting as network edge routers for various services like exchanges and merchant payment processing.

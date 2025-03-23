@@ -1,0 +1,6 @@
+## Developing Secure Bitcoin Cash Systems
+When building Bitcoin Cash applications, maintaining decentralization is crucial. Many developers familiar with centralized security models mistakenly apply these to Bitcoin Cash, undermining its security advantages. Bitcoin Cash security relies on decentralized key control and independent transaction validation by miners.
+
+Common mistakes include centralizing user funds in single "hot" wallets or moving transactions "off blockchain." Exchanges that concentrate funds in centralized wallets create single points of failure that have been repeatedly compromised. Similarly, systems that record transactions on internal ledgers instead of the blockchain substitute Bitcoin Cash's decentralized security with proprietary centralized approaches vulnerable to falsification and fund diversion.
+
+Unless you're prepared to invest heavily in operational security with multiple access control layers and regular audits, avoid taking funds outside Bitcoin Cash's decentralized security context. Even with such investment, centralized architectures merely replicate traditional financial networks' vulnerabilities to identity theft and embezzlement.
