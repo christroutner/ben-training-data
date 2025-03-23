@@ -1,0 +1,7 @@
+## Lightweight Clients and SPV
+
+Lightweight clients are designed for resource-constrained devices like smartphones. They use Simplified Payment Verification (SPV) to operate without validating the full blockchain. These clients download only block headers (about 10,000 times smaller than the full blockchain) and cannot construct a complete picture of all UTXOs.
+
+Unlike full nodes that verify every transaction by tracing the entire blockchain back to the genesis block, lightweight clients verify transactions by their depth in the blockchain. For example, when examining a transaction in block 800,000, a lightweight client establishes a link between the transaction and its block using a merkle path, then verifies that subsequent blocks (800,001 through 800,006) have been built on top. The network's acceptance of these blocks serves as proof by proxy that the transaction exists.
+
+While lightweight clients cannot normally be persuaded that a non-existent transaction exists in a block, they are vulnerable to having transactions "hidden" from them since they don't have records of all transactions. To mitigate this, lightweight clients connect randomly to several nodes to increase the probability of contacting at least one honest node.

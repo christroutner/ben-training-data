@@ -1,0 +1,7 @@
+# The Blockchain
+
+The blockchain is the complete record of all confirmed Bitcoin transactions, enabling full nodes to independently determine which keys and scripts control which bitcoins. It functions as an ordered, back-linked list of transaction blocks stored as either a flat file or in a simple database. Each block references its predecessor through the "previous block hash" field in its header, forming a chain back to the genesis block (the first block ever created).
+
+Blocks are identified by a cryptographic hash of their header, creating an unalterable sequence. Although each block has just one parent, it can temporarily have multiple children during blockchain "forks" that occur when different miners discover blocks almost simultaneously. Eventually, only one child block becomes part of the accepted blockchain. Any modification to a parent block would require changing all subsequent blocks' hashes, making the blockchain's deep history practically immutable due to the enormous computation required.
+
+The blockchain can be visualized as layers in a geological formation. Recent layers (blocks) might change with reorganizations, but deeper layers become increasingly stable. After 100 blocks, the coinbase transaction (containing the block reward) becomes spendable, indicating high confidence in the blockchain's permanence at that depth.

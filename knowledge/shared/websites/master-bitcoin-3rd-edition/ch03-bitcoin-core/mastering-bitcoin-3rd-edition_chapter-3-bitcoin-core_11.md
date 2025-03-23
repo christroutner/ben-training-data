@@ -1,0 +1,5 @@
+## The Security and Independence of Running a Full Node
+
+By running Bitcoin Core, you gain the ability to independently verify all Bitcoin transactions according to consensus rules without trusting any external authority. Your node downloads and validates the entire blockchain, ensuring that all transactions follow Bitcoin's rules. This provides fundamental security guarantees that aren't possible when using third-party services.
+
+Your full node gives you direct access to blockchain data and network status, letting you verify payment receipt, validate transaction inclusion, and monitor the network's health. This independence is core to Bitcoin's design philosophy - it's a decentralized system where individuals can participate directly without intermediaries. As you continue exploring Bitcoin, your node will serve as both a learning tool and a practical component of your interaction with the Bitcoin network.

@@ -1,0 +1,9 @@
+## Asymmetric Revocable Commitments
+
+A more sophisticated approach to payment channels uses asymmetric revocable commitments. In this model, instead of creating a single commitment transaction signed by both parties, each party creates a different commitment transaction that is asymmetric in its structure.
+
+Consider a channel between exchange operators Hitesh and Irene, each funding the channel with 5 bitcoins. Hitesh's commitment transaction has two outputs: one paying Irene 5 bitcoins immediately, and another paying Hitesh 5 bitcoins after a 1,000-block timelock. Irene's commitment transaction is structured similarly but in reverse. This asymmetry disadvantages the party who broadcasts their commitment transaction, as they must wait to receive their funds while the counterparty gets paid immediately.
+
+The revocation mechanism adds another layer of security. Each commitment transaction's delayed output includes a script allowing redemption either by the intended recipient after the timelock, or by the counterparty using a special revocation key. This revocation key consists of two halves, with each party initially knowing only their half. When advancing to a new channel state, each party reveals their half of the previous revocation key to the other, effectively revoking the previous commitment.
+
+If Hitesh attempts to cheat by broadcasting a revoked commitment, Irene can use the complete revocation key to claim both outputs before Hitesh's timelock expires, taking the entire channel balance as punishment. This mechanism allows channels to remain open indefinitely with billions of possible state transitions, eliminating the limitations of timelock-based approaches.

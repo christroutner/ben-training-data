@@ -1,0 +1,7 @@
+## User Security Challenges
+
+Human experience with digital security is relatively new compared to physical security, and modern operating systems are not particularly suited to storing digital money. Computers are constantly exposed to external threats via internet connections and run thousands of software components from hundreds of authors. A single malicious program can compromise keyboards and files, potentially stealing bitcoins stored in wallet applications.
+
+The level of maintenance required to keep computers free of malware exceeds the skill level of most computer users. Despite decades of information security advancements, digital assets remain vulnerable to determined adversaries. Bitcoin creates digital assets with intrinsic value that can be stolen and transferred instantly and irrevocably, creating massive incentives for hackers.
+
+However, Bitcoin also creates incentives to improve computer security by making digital security risks concrete rather than abstract. Holding bitcoins on a computer focuses users' attention on computer security. This has led to significant innovation in information security, including hardware encryption, key storage devices, hardware signing systems, multisignature technology, and digital escrow.

@@ -1,0 +1,5 @@
+## Preventing Loss Through Proper Backups
+
+While theft prevention is a legitimate concern, data loss represents an equally significant risk. In attempting to secure Bitcoin wallets against theft, users must be careful not to make their bitcoins inaccessible to themselves. There have been notable cases of Bitcoin loss due to overly complex security measures, including a 2011 incident where an education project lost approximately 7,000 bitcoins after losing encryption keys to their backups.
+
+When implementing backup procedures, it's critical to understand that for some Bitcoin transactions, especially those using multisignatures or complex scripts, you need to back up more than just private keys or BIP32 seeds. Most output scripts commit to specific conditions that must be fulfilled to spend the bitcoins, and without this information, the funds remain inaccessible even with private keys. Wallet recovery codes must include all necessary information to reconstruct these conditions.

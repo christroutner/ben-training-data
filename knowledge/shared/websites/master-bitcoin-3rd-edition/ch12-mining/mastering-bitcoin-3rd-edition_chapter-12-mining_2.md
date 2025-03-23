@@ -1,0 +1,7 @@
+## Bitcoin Economics and Currency Creation
+
+Bitcoin's monetary supply is created through mining, with a fixed and diminishing issuance rate. Every 210,000 blocks (approximately every four years), the issuance rate decreases by 50%. The first halving occurred at block 210,000, and subsequent halvings continue to reduce the rate of new bitcoins.
+
+The rate decreases exponentially over 32 halvings until block 6,720,000 (around year 2137), when it reaches the minimum currency unit of 1 satoshi. After approximately 6.93 million blocks (around 2140), almost 21 million bitcoins will have been issued. Thereafter, blocks will contain no new bitcoins, and miners will be rewarded solely through transaction fees.
+
+This finite and diminishing issuance creates a fixed monetary supply that resists inflation. Unlike fiat currencies that can be printed in unlimited quantities by central banks, Bitcoin has a mathematically limited supply. This controlled issuance leads to a deflationary aspect, where the currency tends to appreciate in value over time due to the constrained supply. While some economists argue that deflation should be avoided, Bitcoin experts contend that deflation caused by predictably constrained supply differs from deflation caused by demand collapse.

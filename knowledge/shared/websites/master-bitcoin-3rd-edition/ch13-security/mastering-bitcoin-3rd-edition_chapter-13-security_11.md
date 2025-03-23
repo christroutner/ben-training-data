@@ -1,0 +1,5 @@
+## Survivability Planning
+
+An often overlooked security consideration is availability in the event of the key holder's incapacity or death. Standard Bitcoin security advice - using complex passwords and keeping keys private - can make funds inaccessible to a user's family if the user becomes unavailable. In many cases, families may be completely unaware of the bitcoin holdings.
+
+Users with significant bitcoin holdings should consider sharing access details with trusted relatives or lawyers. More sophisticated survivability schemes can be implemented using multisignature access and estate planning through lawyers specialized as "digital asset executors." Without proper planning, bitcoins can effectively be lost forever when the key holder dies or becomes incapacitated, regardless of how secure they were against theft.

@@ -1,0 +1,7 @@
+## Decentralization as a Security Principle
+
+The core security principle in Bitcoin is decentralization, which shifts responsibility and control to users rather than central authorities. Traditional payment systems rely on access control and vetting to exclude malicious actors, whereas Bitcoin's security model is based on independent verification by network participants, allowing the network to remain open without requiring encryption of transaction data.
+
+This contrasts sharply with traditional payment networks like credit card systems, where payments contain user identifiers that can be used repeatedly to "pull" funds. Bitcoin transactions authorize only specific values to specific recipients, cannot be forged, don't reveal private information, and cannot be used for additional payments. This means Bitcoin transactions can safely be broadcast over open channels like unsecured WiFi without compromising security.
+
+The decentralized security model puts significant power and responsibility in users' hands to maintain key secrecy. For many users, especially those using general-purpose computing devices like internet-connected smartphones or laptops, this presents a security challenge that has led to individual compromises, even as the overall system remains secure against mass attacks.

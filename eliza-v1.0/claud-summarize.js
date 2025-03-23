@@ -12,8 +12,8 @@ import Anthropic from "@anthropic-ai/sdk";
 
 
 const inputMarkdownFilename = `input-markdown-document.md`
-const bookTitle = `mastering-bitcoin-cash`
-const chapterTitle = `chapter-8-bitcoin-cash-security`
+const bookTitle = `mastering-bitcoin-3rd-edition`
+const chapterTitle = `chapter-14-applications`
 
 const anthropic = new Anthropic({
   // defaults to process.env["ANTHROPIC_API_KEY"]

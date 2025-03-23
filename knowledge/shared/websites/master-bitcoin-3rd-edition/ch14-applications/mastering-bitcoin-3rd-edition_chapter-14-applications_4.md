@@ -1,0 +1,7 @@
+## Taproot Assets
+
+Taproot Assets (formerly Taro) is a colored coin protocol heavily influenced by RGB. It uses a form of P2C contracts similar to the version used by taproot for enabling MAST functionality. The main advantage of Taproot Assets over RGB is its similarity to the widely used taproot protocol, making it simpler for wallets and other software to implement, though it may not be as flexible as RGB for non-asset features.
+
+Taproot Assets is specifically designed for Lightning Network compatibility. When forwarding non-bitcoin assets over Lightning Network, there are two approaches: native forwarding, where every hop must know about the particular asset and have sufficient balance to forward it; and translated forwarding, where only the hops adjacent to sender and receiver need to know about the asset, with intermediate hops only needing to support bitcoin payments.
+
+While native forwarding requires separate Lightning-like networks for each asset, translated forwarding leverages the existing Bitcoin Lightning Network but may be vulnerable to the "free American call option" problem, where receivers could selectively accept payments based on exchange rate changes. Both RGB and Taproot Assets can technically support both forwarding methods, though Taproot Assets is specifically designed around translated forwarding.

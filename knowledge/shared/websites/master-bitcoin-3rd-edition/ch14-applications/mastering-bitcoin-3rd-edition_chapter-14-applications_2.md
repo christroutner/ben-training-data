@@ -1,0 +1,7 @@
+## Colored Coins
+
+Colored coins are technologies that use Bitcoin transactions to record the creation, ownership, and transfer of assets other than bitcoin itself. These can represent digital assets (stock certificates, licenses, virtual property) or physical assets (commodities, land titles, vehicles). Early implementations assigned extrinsic assets to a single satoshi, while newer ones use mechanisms like single-use seals, pay to contract, and client-side validation.
+
+Single-use seals function like tamper-evident packaging - UTXOs can only be spent once, providing a mechanism to transfer ownership. Pay to Contract (P2C) allows a spender and receiver to agree on data (a contract) and tweak the receiver's public key to commit to this contract. A powerful attribute of P2C is that the contracts look like normal public keys to outside observers, maintaining privacy.
+
+Client-side validation is the mechanism for verifying ownership. When transferring colored coins, the sender provides the receiver with the complete history of transfers, each anchored to the Bitcoin blockchain through regular public keys. The receiver validates this history using their software, needing only the information pertinent to the coins they're receiving. This enhances privacy while ensuring proper validation of ownership rights.

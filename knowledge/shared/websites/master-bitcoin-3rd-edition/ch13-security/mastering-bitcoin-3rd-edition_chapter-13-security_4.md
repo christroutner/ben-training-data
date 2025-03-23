@@ -1,0 +1,7 @@
+## The Root of Trust in Bitcoin
+
+Traditional security architecture is based on the concept of a "root of trust" - a trusted core that serves as the foundation for an entire system's security. Security is typically developed as concentric circles extending outward from this trusted center, with each layer building upon inner layers using various security primitives. This model aims to place most trust in the least complex (and therefore least vulnerable) parts of the system.
+
+Bitcoin's security architecture differs fundamentally. In Bitcoin, the consensus system creates a trusted blockchain that is completely decentralized. A correctly validated blockchain uses the genesis block as the root of trust, building a chain of trust up to the current block. Bitcoin applications should use the blockchain as their root of trust rather than placing trust in other components.
+
+To evaluate a Bitcoin application's security architecture, consider each component and assess the impact if that component were compromised. A properly designed Bitcoin application should be vulnerable only to a compromise of the Bitcoin consensus mechanism itself, with its root of trust based on the strongest part of the Bitcoin security architecture. The numerous hacked exchanges illustrate this principle's importance - they failed because they placed trust in components outside the Bitcoin blockchain, such as hot wallets, centralized databases, and vulnerable encryption schemes.

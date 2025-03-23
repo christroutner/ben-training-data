@@ -1,0 +1,7 @@
+## Simple Payment Channels
+
+Payment channels are trustless mechanisms for exchanging Bitcoin transactions between two parties outside the blockchain. These off-chain transactions would be valid if settled on the blockchain but are instead held off-chain until eventual settlement. This approach enables extremely high transaction throughput, low latency, and fine payment granularity.
+
+A simple example is a one-way payment channel between Emma (user) and Fabian (video streaming provider). Emma establishes a 2-of-2 multisignature address with Fabian and funds it with 36 millibits (0.036 BTC) - enough for up to one hour of video at 0.01 millibits per second. This funding transaction sets the channel capacity and is recorded on the blockchain.
+
+As Emma watches video, she creates commitment transactions that gradually shift the balance from herself to Fabian. For example, after 10 minutes (600 seconds), the latest commitment transaction would allocate 6 millibits to Fabian and 30 millibits to Emma. When Emma stops watching, either party can broadcast the final commitment transaction to settle the channel. In this entire process, only two transactions are recorded on the blockchain: the funding transaction and the settlement transaction.

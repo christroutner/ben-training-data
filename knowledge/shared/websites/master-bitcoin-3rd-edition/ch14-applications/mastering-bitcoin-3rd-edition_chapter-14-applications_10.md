@@ -1,0 +1,7 @@
+## Lightning Network Transport and Pathfinding
+
+Communications between Lightning Network nodes are encrypted point-to-point, with nodes using long-term public keys as identifiers for authentication. When a node wants to send a payment, it must construct a path through the network using channels with sufficient capacity. Nodes advertise routing information including channel availability, capacity, and fees.
+
+Route discovery typically uses a peer-to-peer model where nodes propagate channel announcements to peers in a "flooding" model similar to how Bitcoin propagates transactions. Once a path is found, the sender initializes it by propagating encrypted nested instructions to connect the adjacent payment channels. Importantly, only the sender knows the complete path - intermediary nodes only see their adjacent nodes, enhancing privacy and preventing surveillance or censorship.
+
+Lightning Network implements an onion-routed protocol based on Sphinx, allowing payment senders to construct paths where intermediaries can only verify their portion of the route and identify the next hop, but cannot learn about other nodes in the path, determine the path length, or identify their position in it. The protocol uses fixed-size packets padded with random data to prevent intermediaries from deducing path information based on message size. Unlike Tor, there are no "exit nodes" that can be surveilled, as payments are settled by updating channel balances without broadcasting to the blockchain.

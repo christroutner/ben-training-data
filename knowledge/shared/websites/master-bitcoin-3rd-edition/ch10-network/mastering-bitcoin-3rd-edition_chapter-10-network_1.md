@@ -1,0 +1,5 @@
+# The Bitcoin Network: A Peer-to-Peer Architecture
+
+Bitcoin functions as a peer-to-peer network built on top of the internet. In this P2P architecture, all nodes perform the same functions with no special nodes, creating a flat topology with no centralized services or hierarchy. The network's decentralized nature makes it inherently resilient and open, similar to the early internet's design principles.
+
+Bitcoin's P2P network architecture is fundamental to its core design as a decentralized digital cash system. This flat and decentralized architecture provides the foundation for achieving and maintaining decentralization of control. The term "Bitcoin network" refers to all nodes running the Bitcoin P2P protocol, with additional protocols like Stratum used for mining and lightweight wallets, connected through gateway routing servers.
