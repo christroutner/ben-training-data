@@ -1,0 +1,7 @@
+## The Decentralized Architecture of Bitcoin Cash
+
+Bitcoin Cash operates as a distributed, peer-to-peer system without any central server or control point. New bitcoins are created through a process called "mining," which involves competing to solve mathematical problems while processing transactions. Any network participant can be a miner, using their computing power to verify and record transactions on the blockchain.
+
+The Bitcoin Cash protocol includes algorithms that regulate mining difficulty, automatically adjusting so that a new block is created approximately every 10 minutes regardless of total network processing power. Additionally, the protocol halves the rate of new bitcoin creation every four years and caps the total supply at 21 million coins, projected to be reached by 2140. This controlled issuance rate makes Bitcoin Cash inherently deflationary, as it cannot be arbitrarily inflated through currency creation beyond the predetermined schedule.
+
+Behind the simple description of a digital currency, Bitcoin Cash represents a technological breakthrough that can be viewed as the "Internet of money" - a network for propagating value and securing digital asset ownership through distributed computation.

@@ -1,0 +1,7 @@
+## Getting Started with Bitcoin Cash
+
+For new users like Alice, getting started with Bitcoin Cash is straightforward. Bitcoin.com offers various wallet options for different platforms including Windows, MacOS, Linux, iOS, and Android. After downloading and installing a wallet application, it automatically generates a new Bitcoin Cash address for receiving funds.
+
+The Bitcoin Cash address appears as a long string of letters and numbers, typically starting with 'q' or 'p' and optionally beginning with a 'bitcoincash:' prefix. The wallet also displays this address as a QR code that can be scanned by smartphones. Like email addresses, BCH addresses can be shared with others who want to send you funds, but unlike email, you can create new addresses as often as desired for increased privacy, all directing funds to the same wallet.
+
+When securing a Bitcoin Cash wallet, it's crucial to use a strong password combining uppercase and lowercase characters, numbers, and symbols. Avoid using personal information, common words, or phrases that could be easily guessed. Ideally, use a password generator to create a random password at least 12 characters long, as BCH represents real money that can be instantly moved globally if not properly protected.

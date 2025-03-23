@@ -1,0 +1,7 @@
+## The Evolution of Digital Currency
+
+The development of viable digital money is intrinsically connected to advances in cryptography, which addresses two fundamental challenges: ensuring authenticity to prevent counterfeiting and preventing double-spending (ensuring the same money can't be spent twice). While physical currency solves these problems through specialized printing techniques and physical uniqueness, digital currency requires cryptographic solutions.
+
+When cryptography became more widely available in the late 1980s, researchers began creating digital currencies, typically backed by national currencies or precious metals. However, these early efforts were centralized, making them vulnerable to government intervention and hacking attacks. Like traditional banking systems, they relied on central clearinghouses to settle transactions, creating single points of failure that were eventually targeted by governments or suffered catastrophic collapses.
+
+Bitcoin Cash represents the culmination of decades of cryptographic and distributed systems research, combining four key innovations: a decentralized peer-to-peer network protocol, a public transaction ledger (blockchain), a deterministic and decentralized currency issuance mechanism (mining), and a decentralized transaction verification system (transaction script).

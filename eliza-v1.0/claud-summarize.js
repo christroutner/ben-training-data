@@ -11,8 +11,9 @@ import fs from 'fs';
 import Anthropic from "@anthropic-ai/sdk";
 
 
+const inputMarkdownFilename = `input-markdown-document.md`
 const bookTitle = `mastering-bitcoin-cash`
-const chapterTitle = `transactions`
+const chapterTitle = `chapter-2-how-bicoin-cash-works`
 
 const anthropic = new Anthropic({
   // defaults to process.env["ANTHROPIC_API_KEY"]
@@ -22,7 +23,7 @@ const anthropic = new Anthropic({
 const headerPrompt = `
 # Task: Summarize Technical Content
 
-Below is a chapter from a technical book. Your task is to rewrite the text below the horizonal line, while following the guidelines immediately below this sentance.
+Below is a chapter from a technical book. Your task is to rewrite the text below the horizontal line, while following the guidelines immediately below this sentence.
 
 ## Writing Guidelines
 
@@ -34,7 +35,7 @@ Below is a chapter from a technical book. Your task is to rewrite the text below
 - Each chapter should ideally be 2-3 paragraphs. Use more if needed to capture the essential technical details from the original source. Feel free to use JavaScript code example code where appropriate. Any code, ascii tables, or ascii diagrams do not count against the number of paragraphs. 
 - The audience for this content is technical. It is not for non-technical readers.
 - Do your best not to lose any technical details described in the original content.
-- It's really important to preserve technical details and facts from the original content. It is okey to violate the writing guidelines in order to preserve technical details and facts.
+- It's really important to preserve technical details and facts from the original content. It is okay to violate the writing guidelines in order to preserve technical details and facts.
 
 
 -----
@@ -45,7 +46,7 @@ const footerPrompt = `
 
 # Task: Summarize Technical Content
 
-Above was a chapter from a technical book. Your task is to rewrite the text above the horizonal line, while following the guidelines immediately below this sentance.
+Above was a chapter from a technical book. Your task is to rewrite the text above the horizontal line, while following the guidelines immediately below this sentence.
 
 ## Writing Guidelines
 
@@ -57,13 +58,13 @@ Above was a chapter from a technical book. Your task is to rewrite the text abov
 - Each chapter should ideally be 2-3 paragraphs. Use more if needed to capture the essential technical details from the original source. Feel free to use JavaScript code example code where appropriate. Any code, ascii tables, or ascii diagrams do not count against the number of paragraphs. 
 - The audience for this content is technical. It is not for non-technical readers.
 - Do your best not to lose any technical details described in the original content.
-- It's really important to preserve technical details and facts from the original content. It is okey to violate the writing guidelines in order to preserve technical details and facts.
+- It's really important to preserve technical details and facts from the original content. It is okay to violate the writing guidelines in order to preserve technical details and facts.
 `
 
 
 async function start() {
   try {
-    const content = fs.readFileSync('ch4-transactions.md', 'utf8');
+    const content = fs.readFileSync(inputMarkdownFilename, 'utf8');
     // console.log(content)
 
     const prompt = headerPrompt + content + footerPrompt

@@ -1,0 +1,5 @@
+## Transaction Propagation and Validation
+
+Once constructed, a transaction is transmitted to the Bitcoin Cash network through a peer-to-peer protocol. Any Bitcoin Cash node that receives a valid transaction it hasn't seen before will immediately forward it to other connected nodes. This flooding approach ensures rapid propagation across the entire network, typically reaching most nodes within seconds.
+
+Recipients can verify incoming transactions by checking that they contain outputs redeemable by their keys. They can also independently verify that a transaction is well-formed, uses previously unspent inputs, and includes sufficient fees to be mined in an upcoming block. For small-value transactions (like buying coffee), merchants often accept valid transactions with zero confirmations, as the risk is comparable to accepting credit card payments without ID or signature verification.

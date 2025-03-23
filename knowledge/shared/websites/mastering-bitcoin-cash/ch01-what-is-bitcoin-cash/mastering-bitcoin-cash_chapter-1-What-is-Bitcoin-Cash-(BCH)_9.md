@@ -1,0 +1,7 @@
+## The Transaction Process
+
+When sending Bitcoin Cash, the process involves creating a transaction that transfers value from the sender's address to the recipient's address. For example, when Joe sends Alice 0.0138 BCH (worth approximately $10 at an exchange rate of $725 per BCH), his wallet creates a transaction assigning that amount to Alice's address.
+
+The transaction is signed with Joe's private keys, authorizing the transfer from his wallet. Once sent, the transaction propagates across the Bitcoin Cash network through the peer-to-peer protocol. Within seconds, most well-connected nodes receive the transaction and recognize Alice's address. The transaction becomes visible immediately in blockchain explorers like explorer.bitcoin.com/bch, where users can look up transactions by entering an address.
+
+Initially, new transactions appear as "Unconfirmed," meaning they've been broadcast to the network but not yet included in the blockchain. For a transaction to be confirmed, it must be included in a block by a miner. Once a new block is created (approximately every 10 minutes), the transactions within it are considered confirmed and the received funds can be spent. This confirmation process is what prevents double-spending and ensures the integrity of the Bitcoin Cash ledger.
