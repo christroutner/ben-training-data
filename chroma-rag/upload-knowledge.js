@@ -38,6 +38,7 @@ const directoriesToIngest = [
   '../knowledge/shared/websites/mastering-bitcoin-cash/ch05-bitcoin-cash-network/',
   '../knowledge/shared/websites/mastering-bitcoin-cash/ch06-the-blockchain/',
   '../knowledge/shared/websites/mastering-bitcoin-cash/ch08-bitcoin-cash-security/',
+  '../knowledge/shared/chat-logs/',
   // '../knowledge/shared/code/bch-js/llm'
 ]
 
