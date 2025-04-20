@@ -27,16 +27,17 @@ Below is a chapter from a technical book. Your task is to rewrite the text below
 
 ## Writing Guidelines
 
-- The output format should be in Markdown. 
+- The output format should be in Markdown.
 - Do not make a 'Introduction', 'Conclusion', or 'Summary' chapter. The chapters should only cover the primary concepts in the content.
 - Separate each chapter by a Markdown horizontal bar: '-----'.
-- Separate the concepts in the content into mini-chapters. 
+- Separate the concepts in the content into mini-chapters.
 - The ideal number of chapters is 10. Use less if it feels like it doesn't fit well to use 10. If there are less than 5 chapters, think hard about how to create at least 5 chapters. Use more than 10 if there are simply too many concepts to cover in 10 chapters.
-- Each chapter should ideally be 2-3 paragraphs. Use more if needed to capture the essential technical details from the original source. Feel free to use JavaScript code example code where appropriate. Any code, ascii tables, or ascii diagrams do not count against the number of paragraphs. 
+- Each chapter should ideally be 2-3 paragraphs. Use more if needed to capture the essential technical details from the original source. Feel free to use JavaScript code example code where appropriate. Any code, ascii tables, or ascii diagrams do not count against the number of paragraphs.
 - The audience for this content is technical. It is not for non-technical readers.
 - Do your best not to lose any technical details described in the original content.
 - It's really important to preserve technical details and facts from the original content. It is okay to violate the writing guidelines in order to preserve technical details and facts.
-
+- Do not waste space with an introduction or summary for each chapter. Just present the core content.
+- The output will be used as reference material, so a preface or conclusion to content is not useful.
 
 -----
 `
@@ -50,15 +51,18 @@ Above was a chapter from a technical book. Your task is to rewrite the text abov
 
 ## Writing Guidelines
 
-- The output format should be in Markdown. 
+- The output format should be in Markdown.
 - Do not make a 'Introduction', 'Conclusion', or 'Summary' chapter. The chapters should only cover the primary concepts in the content.
 - Separate each chapter by a Markdown horizontal bar: '-----'.
-- Separate the concepts in the content into mini-chapters. 
+- Separate the concepts in the content into mini-chapters.
 - The ideal number of chapters is 10. Use less if it feels like it doesn't fit well to use 10. If there are less than 5 chapters, think hard about how to create at least 5 chapters. Use more than 10 if there are simply too many concepts to cover in 10 chapters.
-- Each chapter should ideally be 2-3 paragraphs. Use more if needed to capture the essential technical details from the original source. Feel free to use JavaScript code example code where appropriate. Any code, ascii tables, or ascii diagrams do not count against the number of paragraphs. 
+- Each chapter should ideally be 2-3 paragraphs. Use more if needed to capture the essential technical details from the original source. Feel free to use JavaScript code example code where appropriate. Any code, ascii tables, or ascii diagrams do not count against the number of paragraphs.
 - The audience for this content is technical. It is not for non-technical readers.
 - Do your best not to lose any technical details described in the original content.
 - It's really important to preserve technical details and facts from the original content. It is okay to violate the writing guidelines in order to preserve technical details and facts.
+- Do not waste space with an introduction or summary for each chapter. Just present the core content.
+- The output will be used as reference material, so a preface or conclusion to content is not useful.
+
 `
 
 
@@ -85,7 +89,7 @@ async function start() {
     console.log(`Raw response from Claude: `, msgText);
 
     const chapters = msgText.split('\n-----\n');
-    
+
     // Write each chapter to its own file
     chapters.forEach((chapter, index) => {
       if (chapter.trim()) { // Only write non-empty chapters
@@ -94,10 +98,9 @@ async function start() {
         console.log(`Wrote ${filename}`);
       }
     });
-    
+
   } catch(err) {
     console.error('Error in start(): ', err)
   }
 }
-start() 
-
+start()
