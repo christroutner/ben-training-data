@@ -1,0 +1,3598 @@
+Project Path: minimal-slp-wallet
+
+Source Tree:
+
+```
+minimal-slp-wallet
+├── index.js
+├── README.md
+├── lib
+│   ├── consolidate-utxos.js
+│   ├── send-bch.js
+│   ├── adapters
+│   │   └── router.js
+│   ├── utxos.js
+│   ├── tokens.js
+│   └── op-return.js
+├── LICENSE.md
+├── examples
+│   ├── burn-all-tokens.js
+│   ├── send-bch.js
+│   ├── list-tokens.js
+│   ├── validate-utxo.js
+│   ├── get-token-data.js
+│   ├── send-tokens.js
+│   ├── create-wallet.js
+│   └── burn-some-tokens.js
+└── package.json
+
+```
+
+`/home/trout/work/psf/code/minimal-slp-wallet/index.js`:
+
+```js
+/*
+  An npm JavaScript library for front end web apps. Implements a minimal
+  Bitcoin Cash wallet.
+*/
+
+/* eslint-disable no-async-promise-executor */
+
+'use strict'
+
+const BCHJS = require('@psf/bch-js')
+const crypto = require('crypto-js')
+
+// Local libraries
+const SendBCH = require('./lib/send-bch')
+const Utxos = require('./lib/utxos')
+const Tokens = require('./lib/tokens')
+const AdapterRouter = require('./lib/adapters/router')
+const OpReturn = require('./lib/op-return')
+const ConsolidateUtxos = require('./lib/consolidate-utxos.js')
+
+// let this
+
+class MinimalBCHWallet {
+  constructor (hdPrivateKeyOrMnemonic, advancedOptions = {}) {
+    this.advancedOptions = advancedOptions
+
+    // BEGIN Handle advanced options.
+    // HD Derivation path.
+    this.hdPath = this.advancedOptions.hdPath || "m/44'/245'/0'/0/0"
+
+    // bch-js options.
+    const bchjsOptions = {}
+    if (this.advancedOptions.restURL) {
+      bchjsOptions.restURL = advancedOptions.restURL
+    }
+
+    // JWT token for increased rate limits.
+    if (this.advancedOptions.apiToken) {
+      bchjsOptions.apiToken = advancedOptions.apiToken
+    }
+
+    // Basic Auth token for private installations of bch-api.
+    if (this.advancedOptions.authPass) {
+      bchjsOptions.authPass = advancedOptions.authPass
+    }
+
+    // Set the sats-per-byte fee rate.
+    this.fee = 1.2
+    if (this.advancedOptions.fee) {
+      this.fee = this.advancedOptions.fee
+    }
+    // END Handle advanced options.
+
+    // Encapsulae the external libraries.
+    this.crypto = crypto
+    this.BCHJS = BCHJS
+    this.bchjs = new BCHJS(bchjsOptions)
+    bchjsOptions.bchjs = this.bchjs
+
+    // Instantiate the adapter router.
+    if (advancedOptions.interface === 'consumer-api') {
+      bchjsOptions.interface = 'consumer-api'
+      // bchjsOptions.walletService = advancedOptions.walletService
+      // bchjsOptions.bchWalletApi = advancedOptions.bchWalletApi
+    }
+    this.ar = new AdapterRouter(bchjsOptions)
+    bchjsOptions.ar = this.ar
+
+    // Instantiate local libraries.
+    this.sendBch = new SendBCH(bchjsOptions)
+    this.utxos = new Utxos(bchjsOptions)
+    this.tokens = new Tokens(bchjsOptions)
+    this.opReturn = new OpReturn(bchjsOptions)
+    this.consolidateUtxos = new ConsolidateUtxos(this)
+
+    this.temp = []
+    this.isInitialized = false
+
+    // The create() function returns a promise. When it resolves, the
+    // walletInfoCreated flag will be set to true. The instance will also
+    // have a new `walletInfo` property that will contain the wallet information.
+    this.walletInfoCreated = false
+    this.walletInfoPromise = this.create(hdPrivateKeyOrMnemonic)
+
+    // Bind the 'this' object to all functions
+    this.create = this.create.bind(this)
+    this.initialize = this.initialize.bind(this)
+    this.getUtxos = this.getUtxos.bind(this)
+    this.getBalance = this.getBalance.bind(this)
+    this.getTransactions = this.getTransactions.bind(this)
+    this.getTxData = this.getTxData.bind(this)
+    this.send = this.send.bind(this)
+    this.sendTokens = this.sendTokens.bind(this)
+    this.burnTokens = this.burnTokens.bind(this)
+    this.listTokens = this.listTokens.bind(this)
+    this.sendAll = this.sendAll.bind(this)
+    this.burnAll = this.burnAll.bind(this)
+    this.getUsd = this.getUsd.bind(this)
+    this.sendOpReturn = this.sendOpReturn.bind(this)
+    this.utxoIsValid = this.utxoIsValid.bind(this)
+    this.getTokenData = this.getTokenData.bind(this)
+    this.getTokenData2 = this.getTokenData2.bind(this)
+    this.getKeyPair = this.getKeyPair.bind(this)
+    this.optimize = this.optimize.bind(this)
+    this.getTokenBalance = this.getTokenBalance.bind(this)
+    this.getPubKey = this.getPubKey.bind(this)
+    this.broadcast = this.broadcast.bind(this)
+    this.getPsfWritePrice = this.getPsfWritePrice.bind(this)
+    this.cid2json = this.cid2json.bind(this)
+  }
+
+  // Create a new wallet. Returns a promise that resolves into a wallet object.
+  async create (mnemonicOrWif) {
+    // return new Promise(async (resolve, reject) => {
+    try {
+      // Attempt to decrypt mnemonic if password is provided.
+      if (mnemonicOrWif && this.advancedOptions.password) {
+        mnemonicOrWif = this.decrypt(
+          mnemonicOrWif,
+          this.advancedOptions.password
+        )
+      }
+
+      const walletInfo = {}
+
+      // No input. Generate a new mnemonic.
+      if (!mnemonicOrWif) {
+        const mnemonic = this.bchjs.Mnemonic.generate(128)
+        const rootSeedBuffer = await this.bchjs.Mnemonic.toSeed(mnemonic)
+        const masterHDNode = this.bchjs.HDNode.fromSeed(rootSeedBuffer)
+        const childNode = masterHDNode.derivePath(this.hdPath)
+
+        walletInfo.privateKey = this.bchjs.HDNode.toWIF(childNode)
+        walletInfo.publicKey = this.bchjs.HDNode.toPublicKey(
+          childNode
+        ).toString('hex')
+        walletInfo.mnemonic = mnemonic
+        walletInfo.address = walletInfo.cashAddress = this.bchjs.HDNode.toCashAddress(
+          childNode
+        )
+        walletInfo.legacyAddress = this.bchjs.HDNode.toLegacyAddress(childNode)
+        walletInfo.hdPath = this.hdPath
+
+        //
+      } else {
+        // A WIF will start with L or K, will have no spaces, and will be 52
+        // characters long.
+        const startsWithKorL =
+          mnemonicOrWif &&
+          (mnemonicOrWif[0].toString().toLowerCase() === 'k' ||
+            mnemonicOrWif[0].toString().toLowerCase() === 'l')
+        const is52Chars = mnemonicOrWif && mnemonicOrWif.length === 52
+
+        if (startsWithKorL && is52Chars) {
+          // WIF Private Key
+
+          walletInfo.privateKey = mnemonicOrWif
+          const ecPair = this.bchjs.ECPair.fromWIF(mnemonicOrWif)
+          // walletInfo.publicKey = ecPair.toPublicKey().toString('hex')
+          walletInfo.publicKey = this.bchjs.ECPair.toPublicKey(ecPair).toString(
+            'hex'
+          )
+          walletInfo.mnemonic = null
+          walletInfo.address = walletInfo.cashAddress = this.bchjs.ECPair.toCashAddress(
+            ecPair
+          )
+          walletInfo.legacyAddress = this.bchjs.ECPair.toLegacyAddress(ecPair)
+          walletInfo.hdPath = null
+        } else {
+          // 12-word Mnemonic
+
+          const mnemonic = mnemonicOrWif || this.bchjs.Mnemonic.generate(128)
+          const rootSeedBuffer = await this.bchjs.Mnemonic.toSeed(mnemonic)
+          const masterHDNode = this.bchjs.HDNode.fromSeed(rootSeedBuffer)
+          const childNode = masterHDNode.derivePath(this.hdPath)
+
+          walletInfo.privateKey = this.bchjs.HDNode.toWIF(childNode)
+          walletInfo.publicKey = this.bchjs.HDNode.toPublicKey(
+            childNode
+          ).toString('hex')
+          walletInfo.mnemonic = mnemonic
+          walletInfo.address = walletInfo.cashAddress = this.bchjs.HDNode.toCashAddress(
+            childNode
+          )
+          walletInfo.legacyAddress = this.bchjs.HDNode.toLegacyAddress(
+            childNode
+          )
+          walletInfo.hdPath = this.hdPath
+        }
+      }
+
+      // Encrypt the mnemonic if a password is provided.
+      if (this.advancedOptions.password) {
+        walletInfo.mnemonicEncrypted = this.encrypt(
+          mnemonicOrWif,
+          this.advancedOptions.password
+        )
+      }
+
+      walletInfo.slpAddress = this.bchjs.SLP.Address.toSLPAddress(
+        walletInfo.address
+      )
+
+      this.walletInfoCreated = true
+      this.walletInfo = walletInfo
+
+      return walletInfo
+    } catch (err) {
+      // return reject(err)
+      console.error('Error in create()')
+      throw err
+    }
+    // })
+  }
+
+  // Initialize is called to initialize the UTXO store, download token data, and
+  // get a balance of the wallet.
+  async initialize () {
+    await this.walletInfoPromise
+
+    await this.utxos.initUtxoStore(this.walletInfo.address)
+
+    this.isInitialized = true
+
+    return true
+  }
+
+  // Get the UTXO information for this wallet.
+  async getUtxos (bchAddress) {
+    let addr = bchAddress
+
+    // If no address is passed in, but the wallet has been initialized, use the
+    // wallet's address.
+    if (!bchAddress && this.walletInfo && this.walletInfo.cashAddress) {
+      addr = this.walletInfo.cashAddress
+      return this.utxos.initUtxoStore(addr)
+    }
+
+    const utxos = await this.ar.getUtxos(addr)
+    // console.log(`utxos: ${JSON.stringify(utxos, null, 2)}`)
+
+    return utxos
+  }
+
+  // Encrypt the mnemonic of the wallet.
+  encrypt (mnemonic, password) {
+    return this.crypto.AES.encrypt(mnemonic, password).toString()
+  }
+
+  // Decrypt the mnemonic of the wallet.
+  decrypt (mnemonicEncrypted, password) {
+    let mnemonic
+
+    try {
+      mnemonic = this.crypto.AES.decrypt(mnemonicEncrypted, password).toString(
+        this.crypto.enc.Utf8
+      )
+    } catch (err) {
+      throw new Error('Wrong password')
+    }
+
+    return mnemonic
+  }
+
+  // Get the balance of the wallet.
+  async getBalance (inObj = {}) {
+    const { bchAddress } = inObj
+
+    let addr = bchAddress
+
+    // If no address is passed in, but the wallet has been initialized, use the
+    // wallet's address.
+    if (!bchAddress && this.walletInfo && this.walletInfo.cashAddress) {
+      addr = this.walletInfo.cashAddress
+    }
+
+    const balances = await this.ar.getBalance(addr)
+
+    return balances.balance.confirmed + balances.balance.unconfirmed
+  }
+
+  // Get transactions associated with the wallet.
+  // Returns an array of object. Each object has a 'tx_hash' and 'height' property.
+  async getTransactions (bchAddress, sortingOrder = 'DESCENDING') {
+    let addr = bchAddress
+
+    // If no address is passed in, but the wallet has been initialized, use the
+    // wallet's address.
+    if (!bchAddress && this.walletInfo && this.walletInfo.cashAddress) {
+      addr = this.walletInfo.cashAddress
+    }
+
+    // console.log(`Getting transactions for ${addr}`)
+    const data = await this.ar.getTransactions(addr, sortingOrder)
+
+    return data.transactions
+  }
+
+  // Get transaction data for up to 20 TXIDs. txids should be an array. Each
+  // element should be a string containing a TXID.
+  async getTxData (txids = []) {
+    const data = await this.ar.getTxData(txids)
+
+    return data
+  }
+
+  // Send BCH. Returns a promise that resolves into a TXID.
+  // This is a wrapper for the send-bch.js library.
+  send (outputs) {
+    try {
+      // console.log(
+      //   `this.utxos.bchUtxos: ${JSON.stringify(this.utxos.bchUtxos, null, 2)}`
+      // )
+
+      return this.sendBch.sendBch(
+        outputs,
+        {
+          mnemonic: this.walletInfo.mnemonic,
+          cashAddress: this.walletInfo.address,
+          hdPath: this.walletInfo.hdPath,
+          fee: this.fee,
+          privateKey: this.walletInfo.privateKey
+        },
+        // this.utxos.bchUtxos
+        this.utxos.utxoStore.bchUtxos
+      )
+    } catch (err) {
+      console.error('Error in send()')
+      throw err
+    }
+  }
+
+  // Send Tokens. Returns a promise that resolves into a TXID.
+  // This is a wrapper for the tokens.js library.
+  sendTokens (output, satsPerByte, opts = {}) {
+    try {
+      // console.log(`utxoStore: ${JSON.stringify(this.utxos.utxoStore, null, 2)}`)
+
+      // If mining fee is not specified, use the value assigned in the constructor.
+      if (!satsPerByte) satsPerByte = this.fee
+
+      // If output was passed in as an array, use only the first element of the Array.
+      if (Array.isArray(output)) {
+        output = output[0]
+      }
+
+      // Combine all Type 1, Group, and NFT token UTXOs. Ignore minting batons.
+      const tokenUtxos = this.utxos.getSpendableTokenUtxos()
+      // console.log('msw tokenUtxos: ', tokenUtxos)
+
+      return this.tokens.sendTokens(
+        output,
+        this.walletInfo,
+        this.utxos.utxoStore.bchUtxos,
+        tokenUtxos,
+        satsPerByte,
+        opts
+      )
+    } catch (err) {
+      console.error('Error in send()')
+      throw err
+    }
+  }
+
+  async burnTokens (qty, tokenId, satsPerByte) {
+    try {
+      // console.log(`utxoStore: ${JSON.stringify(this.utxos.utxoStore, null, 2)}`)
+
+      // If mining fee is not specified, use the value assigned in the constructor.
+      if (!satsPerByte) satsPerByte = this.fee
+
+      // Combine all Type 1, Group, and NFT token UTXOs. Ignore minting batons.
+      const tokenUtxos = this.utxos.getSpendableTokenUtxos()
+
+      // Generate the transaction.
+      return this.tokens.burnTokens(
+        qty,
+        tokenId,
+        this.walletInfo,
+        this.utxos.utxoStore.bchUtxos,
+        tokenUtxos,
+        satsPerByte
+      )
+    } catch (err) {
+      console.error('Error in burnTokens()')
+      throw err
+    }
+  }
+
+  // Return information on SLP tokens held by this wallet.
+  listTokens (slpAddress) {
+    const addr = slpAddress || this.walletInfo.slpAddress
+
+    return this.tokens.listTokensFromAddress(addr)
+  }
+
+  // Get the balance for a specific SLP token.
+  getTokenBalance (inObj = {}) {
+    const { tokenId, slpAddress } = inObj
+
+    const addr = slpAddress || this.walletInfo.slpAddress
+
+    return this.tokens.getTokenBalance(tokenId, addr)
+  }
+
+  // Send BCH. Returns a promise that resolves into a TXID.
+  // This is a wrapper for the send-bch.js library.
+  sendAll (toAddress) {
+    try {
+      return this.sendBch.sendAllBch(
+        toAddress,
+        {
+          mnemonic: this.walletInfo.mnemonic,
+          cashAddress: this.walletInfo.address,
+          hdPath: this.walletInfo.hdPath,
+          fee: this.fee,
+          privateKey: this.walletInfo.privateKey
+        },
+        // this.utxos.bchUtxos
+        this.utxos.utxoStore.bchUtxos
+      )
+    } catch (err) {
+      console.error('Error in sendAll()')
+      throw err
+    }
+  }
+
+  // Burn all the SLP tokens associated to the token ID
+  async burnAll (tokenId) {
+    try {
+      // Combine all Type 1, Group, and NFT token UTXOs. Ignore minting batons.
+      const tokenUtxos = this.utxos.getSpendableTokenUtxos()
+      // console.log(`tokenUtxos: ${JSON.stringify(tokenUtxos, null, 2)}`)
+
+      // Generate the transaction.
+      const txid = await this.tokens.burnAll(
+        tokenId,
+        this.walletInfo,
+        this.utxos.utxoStore.bchUtxos,
+        tokenUtxos
+      )
+
+      return txid
+    } catch (err) {
+      console.error('Error in burnAll()')
+      throw err
+    }
+  }
+
+  // Get the spot price of BCH in USD.
+  async getUsd () {
+    return await this.ar.getUsd()
+  }
+
+  // Generate and broadcast a transaction with an OP_RETURN output.
+  // Returns the txid of the transactions.
+  async sendOpReturn (
+    msg = '',
+    prefix = '6d02', // Default to memo.cash
+    bchOutput = [],
+    satsPerByte = 1.0
+  ) {
+    try {
+      // Wait for the wallet to finish initializing.
+      await this.walletInfoPromise
+
+      // console.log(
+      //   `this.utxos.utxoStore ${JSON.stringify(this.utxos.utxoStore, null, 2)}`
+      // )
+
+      const txid = await this.opReturn.sendOpReturn(
+        this.walletInfo,
+        this.utxos.utxoStore.bchUtxos,
+        msg,
+        prefix,
+        bchOutput,
+        satsPerByte
+      )
+
+      return txid
+    } catch (err) {
+      console.error('Error in sendOpReturn()')
+      throw err
+    }
+  }
+
+  // Validate that a UTXO can be spent.
+  // const utxo = {
+  //   tx_hash: 'b94e1ff82eb5781f98296f0af2488ff06202f12ee92b0175963b8dba688d1b40',
+  //   tx_pos: 0
+  // }
+  // isValid = await wallet.utxoIsValid(utxo)
+  async utxoIsValid (utxo) {
+    return await this.ar.utxoIsValid(utxo)
+  }
+
+  // Get mutable and immutable data associated with a token.
+  async getTokenData (tokenId, withTxHistory = false) {
+    return await this.ar.getTokenData(tokenId, withTxHistory)
+  }
+
+  // Get token icon and other media
+  async getTokenData2 (tokenId, updateCache) {
+    return await this.ar.getTokenData2(tokenId, updateCache)
+  }
+
+  // This method returns an object that contains a private key WIF, public key,
+  // public address, and the index of the HD wallet that the key pair was
+  // generated from. If no index is provided, it generates the root key pair
+  // (index 0).
+  async getKeyPair (hdIndex = 0) {
+    await this.walletInfoPromise
+
+    const mnemonic = this.walletInfo.mnemonic
+
+    if (!mnemonic) {
+      throw new Error('Wallet does not have a mnemonic. Can not generate a new key pair.')
+    }
+
+    // root seed buffer
+    const rootSeed = await this.bchjs.Mnemonic.toSeed(mnemonic)
+
+    const masterHDNode = this.bchjs.HDNode.fromSeed(rootSeed)
+
+    const childNode = masterHDNode.derivePath(`m/44'/245'/0'/0/${hdIndex}`)
+
+    const cashAddress = this.bchjs.HDNode.toCashAddress(childNode)
+    console.log('Generating a new key pair for cashAddress: ', cashAddress)
+
+    const wif = this.bchjs.HDNode.toWIF(childNode)
+
+    const publicKey = this.bchjs.HDNode.toPublicKey(childNode).toString('hex')
+
+    const slpAddress = this.bchjs.SLP.Address.toSLPAddress(cashAddress)
+
+    const outObj = {
+      hdIndex,
+      wif,
+      publicKey,
+      cashAddress,
+      slpAddress
+    }
+
+    return outObj
+  }
+
+  // Optimize the wallet by consolidating UTXOs. This has the effect of speeding
+  // up all API calls and improving the UX.
+  async optimize (dryRun = false) {
+    return await this.consolidateUtxos.start({ dryRun })
+  }
+
+  // Get token icon and other media
+  async getPubKey (addr) {
+    try {
+      return await this.ar.getPubKey(addr)
+    } catch (err) {
+      console.error('Error in minimal-slp-wallet/getPubKey()')
+      throw err
+    }
+  }
+
+  // Broadcast a hex-encoded TX to the network
+  async broadcast (inObj = {}) {
+    try {
+      const { hex } = inObj
+
+      return await this.ar.sendTx(hex)
+    } catch (err) {
+      console.error('Error in minimal-slp-wallet/broadcast()')
+      throw err
+    }
+  }
+
+  // Get the cost in PSF tokens to write 1MB of data to the PSFFPP IPFS pinning
+  // network. Find out more at psffpp.com.
+  async getPsfWritePrice () {
+    try {
+      return await this.ar.getPsfWritePrice()
+    } catch (err) {
+      console.error('Error in minimal-slp-wallet/getPsfWritePrice()')
+      throw err
+    }
+  }
+
+  // Convert a CID to a JSON object.
+  async cid2json (inObj = {}) {
+    try {
+      const { cid } = inObj
+
+      console.log('index.js/cid2json() cid: ', cid)
+
+      return await this.ar.cid2json({ cid })
+    } catch (err) {
+      console.error('Error in minimal-slp-wallet/cid2json()')
+      throw err
+    }
+  }
+}
+
+module.exports = MinimalBCHWallet
+
+```
+
+`/home/trout/work/psf/code/minimal-slp-wallet/README.md`:
+
+```md
+# minimal-slp-wallet
+
+This is a minimalist Bitcoin Cash (BCH) wallet 'engine' for use with front end web apps. It contains all the core functionality needed by a wallet:
+
+- Create a new BCH wallet, import a mnemonic, or import a private key (WIF)
+- Encrypt a wallets mnemonic for safe storage
+- Send and receive BCH
+- Send and receive SLP tokens
+- Get balances and UTXOs
+- Retrieve transaction history & transaction details
+- Burn tokens
+- Price BCH in USD
+- Send messages on the blockchain via OP_RETURN data
+- Verify that a UTXO is unspent
+- Get token icons and other media associated with a token
+
+It is 'token aware' and can work with all SLP tokens, including NFTs. It can interface with Web 2 infrastructure like [FullStack.cash](https://fullstack.cash) or with the [Cash Stack Web 3 infrastructure](https://cashstack.info) via the [bch-consumer library](https://www.npmjs.com/package/bch-consumer).
+
+This target consumers for this library is:
+
+- [bch-wallet-web3-android](https://permissionless-software-foundation.github.io/bch-wallet-web3-android/) Bitcoin Cash wallet app that runs on Web and Android.
+- [psf-bch-wallet](https://github.com/Permissionless-Software-Foundation/psf-bch-wallet) command line wallet.
+
+The default derivation path for the wallet keypair is `m/44'/245'/0'/0/0`. This is the BIP44 standard for SLP token-aware BCH wallets.
+
+## Examples
+
+The [examples](./examples) directory shows how to write node.js JavaScript apps that use this library to work with BCH:
+
+- [Create a wallet](./examples/create-wallet.js)
+- [Send BCH](./examples/send-bch.js)
+- [List Tokens](./examples/list-tokens.js)
+- [Send Tokens](./examples/send-tokens.js)
+
+## How to use it?
+
+### Browser
+
+#### Add to your HTML scripts
+
+```js
+<script src="https://unpkg.com/minimal-slp-wallet"></script>
+```
+
+This will load the wallet into `window.SlpAddress`
+
+#### Node.js
+
+```bash
+npm install minimal-slp-wallet --save
+```
+
+```js
+// ESM
+import BchWallet from 'minimal-slp-wallet'
+
+// CommonJS
+const BchWallet = require('minimal-slp-wallet')
+```
+
+### Instantiate Library
+
+The wallet has different configuration parameters, that allow it to use web2 or web3 infrastructure. After instantiating a class, two Promises should be awaited:
+
+- `await bchWallet.walletInfoPromise` will resolve when the BCH has been fully created. It only takes a few microseconds. Once resolves, the object `bchWallet.walletInfo` will contain all the wallet information.
+- `await bchWallet.initialize()` will reach out to the blockchain and initialize the wallet by fetching its balance, tokens, and UTXO information. This is not necessary to call when creating a new wallet without a transaction history.
+
+#### Using Web 2 Infrastructure
+
+```js
+const BchWallet = require('minimal-slp-wallet')
+
+const bchWallet = new BchWallet(undefined, {
+  interface: 'rest-api',
+  restURL: 'https://api.fullstack.cash/v5/'
+})
+await bchWallet.initialize()
+```
+
+#### Using Web 3 Interface
+
+```js
+const BchWallet = require('minimal-slp-wallet')
+
+const bchWallet = new BchWallet(undefined, {
+  interface: 'consumer-api',
+  restURL: 'https://free-bch.fullstack.cash'
+  // Connect to your own instance of ipfs-bch-wallet-consumer:
+  // restURL: 'http://localhost:5005'
+})
+await bchWallet.initialize()
+```
+
+### Create new wallets
+
+```js
+const bchWallet = new BchWallet()
+await bchWallet.walletInfoPromise // Wait for wallet to be created.
+
+// 12 words seed phrase for the wallet
+console.log(bchWallet.walletInfo.mnemonic)
+
+// cash address derived from the seed (derivation path: m/44'/245'/0'/0/0)
+console.log(bchWallet.walletInfo.cashAddress)
+
+// legacy address derived from the seed (derivation path: m/44'/245'/0'/0/0)
+console.log(bchWallet.walletInfo.legacyAddress)
+
+// private key for the BCH address derived from the seed (derivation path: m/44'/245'/0'/0/0)
+console.log(bchWallet.walletInfo.privateKey)
+```
+
+### Mnemonic encryption
+
+```js
+const bchWallet = new BchWallet(null, {
+  password: 'myStrongPassword'
+})
+
+// 12 words seed phrase for the wallet
+console.log(bchWallet.walletInfo.mnemonic)
+
+// encrypted mnemonic
+console.log(bchWallet.walletInfo.mnemonicEncrypted)
+
+const bchWallet2 = new BchWallet(bchWallet.walletInfo.mnemonicEncrypted, {
+  password: 'myStrongPassword'
+})
+
+// decrypted mnemonic
+console.log(bchWallet2.walletInfo.mnemonic)
+```
+
+### Initialize wallet with mnemonic
+
+```js
+// initialize with 12 words seed phrase for the wallet
+const bchWallet = new BchWallet(
+  'minor bench until split suffer shine series bag avoid cruel orient aunt'
+)
+
+// initialize for specific HD derivation path
+const bchWallet2 = new BchWallet(
+  'minor bench until split suffer shine series bag avoid cruel orient aunt',
+  {
+    HdPath: "m/44'/245'/0'/1'"
+  }
+)
+```
+
+### Initialize wallet with private key
+Private keys are in WIF format, and start with a capital 'K' or 'L'.
+
+```js
+const bchWallet = new BchWallet('L3BUek8oq1iijZTkfdRYo8RDxEe3PpB8MyJnh2FSGWAoCjAffQCp')
+```
+
+### Send transactions
+
+You can send funds to other BCH wallets. You can distribute funds to N users by simply extending the receiver array.
+
+```js
+const bchWallet = new BchWallet()
+
+const receivers = [
+  {
+    address: 'bitcoincash:qp2rmj8heytjrksxm2xrjs0hncnvl08xwgkweawu9h',
+    // amount in satoshis, 1 satoshi = 0.00000001 Bitcoin
+    amountSat: 100000
+  }
+]
+
+const txid = await bchWallet.send(receivers)
+
+// Transaction ID
+// you can then see the transaction in one of the explorers
+// example: `https://explorer.bitcoin.com/bch/tx/${tx.txid}`;
+console.log(txid)
+```
+
+### Send Tokens
+
+You can send tokens in a similar way:
+
+```js
+const receiver = {
+  address: 'simpleledger:qpeq7xx5x3a2jfa0x0w8cjqp4v9cm842vgsjqwzvfk',
+  tokenId: 'a4fb5c2da1aa064e25018a43f9165040071d9e984ba190c222a7f59053af84b2',
+  qty: 1.25
+}
+
+const txid = await bchWallet.sendTokens(receiver)
+
+// Transaction ID
+console.log(txid)
+```
+
+_Note:_ Only single token sends are supported at the moment. i.e. One token type
+per receiver per transaction.
+
+### Get Wallet Balance
+
+Gets balance (confirmed + unconfirmed) for an BCH address
+
+```js
+// will get a balance for bchWallet.cashAddress
+const myBalance = await bchWallet.getBalance()
+
+// will get a balance for any address
+const balanceOfOtherAddress = await bchWallet.getBalance({
+  bchAddress: 'bitcoincash:qp2rmj8heytjrksxm2xrjs0hncnvl08xwgkweawu9h'
+})
+```
+
+### List Tokens
+
+List the SLP tokens held by an address.
+
+```js
+// will get token balance for bchWallet.cashAddress
+const myBalance = await bchWallet.listTokens()
+
+// will get a balance for any address
+const balanceOfOtherAddress = await bchWallet.listTokens(
+  'simpleledger:qpeq7xx5x3a2jfa0x0w8cjqp4v9cm842vgsjqwzvfk'
+)
+```
+
+### Get Token Balance
+
+Given a token ID, list the balance held by an address
+
+```js
+// Get the token balance for the wallet.
+const myBalance = await bchWallet.getTokenBalance({
+  tokenId: 'a4fb5c2da1aa064e25018a43f9165040071d9e984ba190c222a7f59053af84b2'
+})
+
+// Get a token balance for any address
+const balanceOfOtherAddress = await bchWallet.getTokenBalance({
+  tokenId: 'a4fb5c2da1aa064e25018a43f9165040071d9e984ba190c222a7f59053af84b2',
+  slpAddress: 'simpleledger:qpeq7xx5x3a2jfa0x0w8cjqp4v9cm842vgsjqwzvfk'
+})
+```
+
+### Get Token Data
+Given a Token ID for an SLP token, retrieve data about the token. This includes mutable and immutable data using the [PS002 specification](https://github.com/Permissionless-Software-Foundation/specifications/blob/master/ps002-slp-mutable-data.md) which controls token icons and other metadata.
+
+```js
+const bchWallet = new BchWallet()
+
+const tokenId = '59a62f35b0882b7c0ed80407d9190b460cc566cb6c01ed4817ad64f9d2508702'
+
+const tokenData = await slpWallet.getTokenData(tokenId)
+```
+
+This function call can also retrieve the transaction history for a token. This is particularly useful for NFTs, for applications that need to find the current address holding the NFT.
+
+`const tokenData = await slpWallet.getTokenData(tokenId, true)`
+
+The TX history is sorted in descending order by default. It can be sorted in ascending order like this:
+
+`const tokenData = await slpWallet.getTokenData(tokenId, true, 'ASCENDING')`
+
+### Get Token Media
+Given a Token ID for an SLP token, retrieve the token icon URL and other associated media. This includes mutable and immutable data using the [PS007 specification](https://github.com/Permissionless-Software-Foundation/specifications/blob/master/ps007-token-data-schema.md) which controls token icons and other metadata.
+
+`getTokenData()` returns much faster, but the client has to lookup the data on IPFS. `getTokenData2()` has the server lookup the token data. This can sometimes be faster, or sometimes it can take several seconds.
+
+```js
+const bchWallet = new BchWallet()
+
+const tokenId = '59a62f35b0882b7c0ed80407d9190b460cc566cb6c01ed4817ad64f9d2508702'
+
+const tokenData = await slpWallet.getTokenData2(tokenId)
+```
+
+### Get Wallet Transaction History
+
+Get an array of TXIDs of the transactions involving this wallet.
+
+```js
+// will get transaction history for bchWallet.cashAddress
+const myTransactions = await bchWallet.getTransactions()
+
+// will get transaction history for any address
+const txHistoryOfOtherAddress = await bchWallet.getTransactions(
+  'bitcoincash:qp2rmj8heytjrksxm2xrjs0hncnvl08xwgkweawu9h'
+)
+```
+
+### Get Detailed Transaction Data
+
+Get transactions details for an array of up to 20 TXIDs.
+
+```js
+// Input is an array of up to 20 TXIDs.
+const txids = [
+  '01517ff1587fa5ffe6f5eb91c99cf3f2d22330cd7ee847e928ce90ca95bf781b'
+]
+
+const result = await bchWallet.getTxData(txids)
+```
+
+### Get the Price of BCH in USD
+
+```js
+// Get the current spot price of BCH in USD
+const result = await bchWallet.getUsd()
+```
+
+### Send Memo.cash TX with OP_RETURN Data
+
+```js
+// Write a small amount of text to the blockchain, compatible with memo.cash.
+const result = await bchWallet.sendOpReturn('This is a memo.cash post.')
+```
+
+### Error Handling
+
+```js
+try {
+  tx = await bchWallet.send([
+    {
+      address: 'bitcoincash:qrlhkg4d9z3y88j246a6482xzregxaxnfsagmd2kh3',
+      amountSat: 1000
+    }
+  ])
+} catch (err) {
+  console.error(err)
+
+  if (err.message && err.message.indexOf('Insufficient') > -1) {
+    return alert('Insufficient balance on your BCH account.')
+  }
+
+  return alert('Error. Try again later.')
+}
+```
+
+### Save keys in the browser
+
+While developing BCH apps, remember to never send the private keys / mnemonic / seed phrase to your servers.
+
+1. Your servers can be hacked
+2. Depending on your jurisdiction you may not have the allowance to manage the funds of your users
+
+```js
+const bchWallet1 = new BchWallet()
+
+// save the mnemonic for later
+localStorage.setItem('BCH_MNEMONIC', bchWallet1.walletInfo.mnemonic)
+
+// retrieve mnemonic to initialize the wallet
+const bchWallet2 = new BchWallet(localStorage.getItem('BCH_MNEMONIC'))
+```
+
+### Validate a UTXO
+In BCH applications, it's often necessary to validate if a UTXO is still alive and spendable, or if it's already been spent. This function returns true if the UTXO is still spendable, false if not.
+
+```js
+const utxo = {
+  txid: 'b94e1ff82eb5781f98296f0af2488ff06202f12ee92b0175963b8dba688d1b40',
+  vout: 0
+}
+
+const isValid = await bchWallet.utxoIsValid(utxo)
+```
+
+### Generate a Key Pair
+If a wallet is generated from a 12-word mnemonic, it can generate a key pair from the HD wallet.
+
+```js
+const keyPair = await bchWallet.getKeyPair(5)
+```
+
+### Optimize Wallet
+Every [UTXO](https://github.com/bitcoinbook/bitcoinbook/blob/develop/ch06.asciidoc#transaction-outputs-and-inputs) in the wallet results in an API call. Calling the `optimize()` function will consolidate the number of UTXOs in the wallet. This speeds up performance and leads to a better user experience overall.
+
+```js
+await bchWallet.optimize()
+```
+
+### Get a Public Key
+If an address has made at least one send transaction, the it is possible to lookup the addresses public key from the blockchain. This public key can then be used to send encrypted messages to that address. If successful, this function will return a string that contains a hex-encoded public key.
+
+
+```js
+const addr = 'bitcoincash:...'
+const pubKey = await bchWallet.getPubKey(addr)
+```
+
+### Get UTXOs for an Address
+This function can retrieve the UTXOs controlled by the wallet:
+
+```js
+const utxos = await bchWallet.getUtxos()
+```
+
+Or the UTXOs held by another address can be retrieved:
+
+```js
+const utxos = await bchWallet.getUtxos('bitcoincash...')
+```
+
+### Broadcast a Transaction
+If you have a hex-encoded transaction, you can broadcast it to the network:
+
+```js
+const hex = '0200...tx-in-hex-format'
+const txid = await bchWallet.broadcast({hex})
+console.log(txid)
+```
+
+### Get the PSF Write Price
+This function retrieves the cost in PSF tokens to pin 1MB of content to the
+decentralized PSFFPP IPFS pinning network. Find out more at [PSFFPP.com](https://psffpp.com).
+
+```js
+const price = await bchWallet.getPsfWritePrice()
+console.log(price)
+// 0.08335233
+```
+
+### Convert a CID to a JSON object
+When using the `getTokenData()` the mutable and immutable token data is returned as an IPFS CID. The data is stored as a JSON file on the IPFS network. In that case, the JSON object can be retrieved from the CID.
+
+```js
+const cid = 'bafkreigbgrvpagnmrqz2vhofifrqobigsxkdvnvikf5iqrkrbwrzirazhm'
+const json = await bchWallet.cid2json({ cid })
+console.log(json)
+/*
+{
+  "success":true,
+  "json":{
+    "schema":"1",
+    "tokenIcon":"https://pin.fullstack.cash/ipfs/view/bafkreibmtefm7h75bre6fglddm3ehzev4kl4q2ohk2a2omv2pfmcmc3rpm",
+    "fullSizedUrl":"https://pin.fullstack.cash/ipfs/view/bafkreibmtefm7h75bre6fglddm3ehzev4kl4q2ohk2a2omv2pfmcmc3rpm",
+    "nsfw":false,
+    "userData":{},
+    "jsonLd":{},
+    "about":"This Type 128 Group token controls a series of NFTs that represent edu..."
+  }
+}
+*/
+```
+
+# Licence
+
+[MIT](LICENSE.md)
+
+```
+
+`/home/trout/work/psf/code/minimal-slp-wallet/lib/consolidate-utxos.js`:
+
+```js
+/*
+  This library is used to optimize a wallet by consolidating the UTXOs it
+  controls. Reducing the number of UTXOs has a direct effect at the speed
+  of API calls and a good user experience. More UTXOs means more API calls,
+  which means it takes more time to do everything. Reducing the number of UTXOs
+  improves the user exerience.
+
+  The functions in this library scan a wallets UTXO collection and looks for
+  opportunities to consolidate them.
+*/
+
+// Global npm libraries
+const RetryQueue = require('@chris.troutner/retry-queue-commonjs')
+
+class ConsolidateUtxos {
+  constructor (wallet) {
+    // Dependency injection.
+    this.wallet = wallet
+    if (!this.wallet) {
+      throw new Error('Must pass an instance of the wallet.')
+    }
+
+    // Encapsulate dependencies
+    this.bchjs = wallet.bchjs
+    this.retryQueue = new RetryQueue({
+      attempts: 3,
+      retryPeriod: 1000
+    })
+
+    // Bind all subfunction to the 'this' object
+    this.start = this.start.bind(this)
+    this.consolidateTokenUtxos = this.consolidateTokenUtxos.bind(this)
+    this.countTokenUtxos = this.countTokenUtxos.bind(this)
+    this.updateUtxos = this.updateUtxos.bind(this)
+    this.countBchUtxos = this.countBchUtxos.bind(this)
+  }
+
+  // This is the top-level function that orchestrates all other functions in
+  // this library. When called it will scan the UTXOs in a wallet, looking for
+  // opportunities to consolidate UTXOs. If the dryRun input is set to true,
+  // then no transactions are broadcasted.
+  async start (inObj = {}) {
+    try {
+      const outObj = {}
+
+      // Extract input variables from the input object.
+      const { dryRun } = inObj
+
+      await this.retryQueue.addToQueue(this.updateUtxos, {})
+
+      outObj.bchUtxoCnt = this.countBchUtxos()
+      // console.log(`bchUtxoCnt: ${outObj.bchUtxoCnt}`)
+
+      outObj.bchTxid = null // Initial value
+
+      // Consolidate all BCH UTXOs if there is more than one
+      if (outObj.bchUtxoCnt > 1 && !dryRun) {
+        outObj.bchTxid = await this.retryQueue.addToQueue(this.wallet.sendAll, this.wallet.walletInfo.cashAddress)
+
+        await this.bchjs.Util.sleep(3000)
+
+        await this.retryQueue.addToQueue(this.updateUtxos, {})
+      }
+
+      outObj.tokenUtxos = this.countTokenUtxos()
+      // console.log(`tokenUtxos: ${JSON.stringify(outObj.tokenUtxos, null, 2)}`)
+
+      outObj.tokenTxids = [] // Initial value
+      if (!dryRun) {
+        outObj.tokenTxids = await this.retryQueue.addToQueue(this.consolidateTokenUtxos, outObj.tokenUtxos)
+      }
+
+      return outObj
+    } catch (err) {
+      console.error('Error in conslidate-utxos.js/start()')
+      throw err
+    }
+  }
+
+  // This function expects the output of countTokenUtxos() as its input: an
+  // array of objects, with each object representing a token.
+  // If the number of UTXOs associated with a token is greater than zero,
+  // the a transaction is broadcast to send the tokens back to the wallet, which
+  // will consolidate all the token UTXOs.
+  // It returns an array of TXIDs for any tokens that are consolidated.
+  async consolidateTokenUtxos (tokenUtxos) {
+    const tokenTxids = []
+
+    for (let i = 0; i < tokenUtxos.length; i++) {
+      const thisToken = tokenUtxos[i]
+
+      if (thisToken.utxos.length > 1) {
+        const receiver = {
+          address: this.wallet.walletInfo.cashAddress,
+          tokenId: thisToken.tokenId,
+          qty: thisToken.qty
+        }
+
+        const txid = await this.wallet.sendTokens(receiver)
+        tokenTxids.push(txid)
+
+        await this.bchjs.Util.sleep(3000)
+
+        await this.updateUtxos()
+      }
+    }
+
+    return tokenTxids
+  }
+
+  // This function returns an array of objects. Each object represents a fungible
+  // token class. It contains the count of UTXOs for that token.
+  countTokenUtxos () {
+    const tokenUtxos = this.wallet.utxos.utxoStore.slpUtxos.type1.tokens
+    // console.log(`tokenUtxos: ${JSON.stringify(tokenUtxos, null, 2)}`)
+
+    const tokenList = this.wallet.tokens.listTokensFromUtxos(tokenUtxos)
+    // console.log(`tokenList: ${JSON.stringify(tokenList, null, 2)}`)
+
+    const outAry = []
+
+    // Loop through each token class in the wallet.
+    for (let i = 0; i < tokenList.length; i++) {
+      const thisToken = tokenList[i]
+
+      const tokenObj = {
+        tokenId: thisToken.tokenId,
+        ticker: thisToken.ticker,
+        name: thisToken.name,
+        qty: thisToken.qty,
+        cnt: 0,
+        utxos: []
+      }
+
+      // Loop through each token UTXO.
+      for (let j = 0; j < tokenUtxos.length; j++) {
+        const thisUtxo = tokenUtxos[j]
+
+        // Add the UTXO to the token object if it matches the token ID.
+        if (thisUtxo.tokenId === thisToken.tokenId) {
+          tokenObj.cnt++
+          tokenObj.utxos.push(thisUtxo)
+        }
+      }
+
+      outAry.push(tokenObj)
+    }
+
+    return outAry
+  }
+
+  // Update the UTXO store of the wallet.
+  async updateUtxos () {
+    await this.wallet.walletInfoPromise
+    await this.wallet.initialize()
+
+    return true
+  }
+
+  // Count the number of BCH UTXOs in the wallet. These can all be consolidated
+  // into a single UTXO.
+  countBchUtxos () {
+    const bchUtxos = this.wallet.utxos.utxoStore.bchUtxos
+    // console.log(`bchUtxos: ${JSON.stringify(bchUtxos, null, 2)}`)
+
+    return bchUtxos.length
+  }
+}
+
+module.exports = ConsolidateUtxos
+
+```
+
+`/home/trout/work/psf/code/minimal-slp-wallet/lib/send-bch.js`:
+
+```js
+/*
+  This library contains functions specific to sending BCH.
+*/
+
+// let this
+
+// const BCHJS = require('@psf/bch-js')
+const bchDonation = require('bch-donation')
+// const AdapterRouter = require('./adapters/router')
+
+// Send the Permissionless Software Foundation a donation to thank them for creating
+// and maintaining this software.
+const PSF_DONATION = 2000
+
+class SendBCH {
+  constructor (localConfig = {}) {
+    // Dependency injection.
+    this.bchjs = localConfig.bchjs
+    if (!this.bchjs) {
+      throw new Error(
+        'Must pass instance of bch-js when instantiating SendBCH.'
+      )
+    }
+    this.ar = localConfig.ar
+    if (!this.ar) {
+      throw new Error('Must pass instance of Adapter Router.')
+    }
+
+    this.restURL = localConfig.restURL
+    this.apiToken = localConfig.apiToken
+    // this.ar = new AdapterRouter({ bchjs: this.bchjs })
+
+    // this.bchjs = new BCHJS(config)
+
+    // This should be the last command in the constructor.
+    // this is a local global variable for when 'this' loses scope.
+    // this = this
+  }
+
+  // Top-level function that orchestrates the sending of BCH.
+  // Expects an array of BCH-only UTXOs. Does not check if UTXOs belong to a token,
+  // and will burn tokens if they are included in the UTXO list.
+  async sendBch (outputs, walletInfo, utxos) {
+    // console.log('sendBch() walletInfo: ', walletInfo)
+
+    try {
+      // Generate the transaction.
+      const transaction = await this.createTransaction(
+        outputs,
+        walletInfo,
+        utxos
+      )
+      // console.log('transaction hex: ', transaction.hex)
+
+      // Broadcast the transaction to the network.
+      // const txid = await this.bchjs.RawTransactions.sendRawTransaction(
+      //   transaction.hex
+      // )
+      const txid = await this.ar.sendTx(transaction.hex)
+      // console.log('sendBch(): ', txid)
+
+      // TODO: Remove the spent UTXOs from the utxoStore.
+
+      return txid
+    } catch (err) {
+      console.error('Error in send-bch.js/sendBch()')
+      throw err
+    }
+  }
+
+  // outputs is an array of output objects. Look like this:
+  // {
+  //     address: "bitcoincash:qp2rmj8heytjrksxm2xrjs0hncnvl08xwgkweawu9h",
+  //     // amount in satoshis, 1 satoshi = 0.00000001 Bitcoin
+  //     amountSat: 100000
+  // }
+  // Expects an array of BCH-only UTXOs. Does not check if UTXOs belong to a token,
+  // and will burn tokens if they are included in the UTXO list.
+  async createTransaction (outputs, walletInfo, utxos) {
+    // console.log('createTransaction() walletInfo: ', walletInfo)
+
+    try {
+      // If the BCH utxos array is still empty, then throw an error.
+      if (!utxos || utxos.length === 0) {
+        throw new Error('UTXO list is empty')
+      }
+
+      // Default value of 1 sat-per-byte if mining fee is not specified.
+      if (!walletInfo.fee) walletInfo.fee = 1.0
+
+      // Determine the UTXOs needed to be spent for this TX, and the change
+      // that will be returned to the wallet.
+      const { necessaryUtxos, change } = this.getNecessaryUtxosAndChange(
+        outputs,
+        utxos,
+        walletInfo.fee
+      )
+
+      // Create an instance of the Transaction Builder.
+      const transactionBuilder = new this.bchjs.TransactionBuilder()
+
+      // Add inputs
+      necessaryUtxos.forEach(utxo => {
+        transactionBuilder.addInput(utxo.tx_hash, utxo.tx_pos)
+      })
+
+      // Add outputs
+      outputs.forEach(receiver => {
+        transactionBuilder.addOutput(
+          this.bchjs.Address.toLegacyAddress(receiver.address),
+          receiver.amountSat)
+      })
+
+      // Send a 2000 sat donation to PSF to thank them for creating this awesome software.
+      // console.log(`psf: ${bchDonation('psf').donations}`)
+      transactionBuilder.addOutput(bchDonation('psf').donations, PSF_DONATION)
+
+      // Send change back to the wallet, if it's bigger than dust.
+      // console.log(`change: ${change}`)
+      if (change && change > 546) {
+        transactionBuilder.addOutput(walletInfo.cashAddress, change)
+      }
+
+      // Generate a key pair from the mnemonic.
+      const keyPair = await this.getKeyPairFromMnemonic(walletInfo)
+
+      // Sign each UTXO that is about to be spent.
+      necessaryUtxos.forEach((utxo, i) => {
+        let redeemScript
+
+        transactionBuilder.sign(
+          i,
+          keyPair,
+          redeemScript,
+          transactionBuilder.hashTypes.SIGHASH_ALL,
+          utxo.value
+        )
+      })
+
+      // Build the transaction, return the compiled transaction in hex format.
+      const tx = transactionBuilder.build()
+      return { hex: tx.toHex(), txid: tx.getId() }
+    } catch (err) {
+      console.error('Error in send-bch.js/createTransaction()')
+      throw err
+    }
+  }
+
+  // Get the UTXOs required to generate a transaction.
+  // Uses the smallest UTXOs first, which maximizes the number UTXOs used.
+  // This helps reduce the total number UTXOs in the wallet, which is efficient
+  // for limiting the number of network calls, and leads to better UX.
+  getNecessaryUtxosAndChange (outputs, availableUtxos, satsPerByte = 1.0, opts = {}) {
+    const sortedUtxos = (opts.utxoSortingFn
+      ? opts.utxoSortingFn(availableUtxos)
+      : this.sortUtxosBySize(availableUtxos, 'ASCENDING')
+    )
+    // console.log(`sortedUtxos: ${JSON.stringify(sortedUtxos, null, 2)}`)
+
+    // const satsPerByte = 1.0
+
+    // Calculate the miner fee, assuming inputs (this cost will be added later).
+    // Change is assumed, that is the +1.
+    const fee = this.calculateFee(0, outputs.length + 1, satsPerByte)
+    // console.log(`fee: ${fee}`)
+
+    // Calculate the satoshis needed (minus the fee for each input)
+    const satoshisToSend = outputs.reduce(
+      (acc, receiver) => acc + receiver.amountSat,
+      0
+    )
+    let satoshisNeeded = satoshisToSend + fee + PSF_DONATION
+
+    let satoshisAvailable = 0
+    const necessaryUtxos = []
+
+    // Add each UTXO to the calculation until enough satoshis are found.
+    for (const utxo of sortedUtxos) {
+      // TODO: Check getTxOut() on the full node to verify the UTXO is valid.
+
+      // TODO: Check the ancestor history to make sure the UTXO won't fail the
+      // 50-chain limit rule.
+
+      // Add the next UTXO.
+      necessaryUtxos.push(utxo)
+      satoshisAvailable += utxo.value
+
+      // Additional cost per Utxo input is 148 sats for mining fees.
+      satoshisNeeded += 148
+
+      // Exit the loop once enough UTXOs are found to pay the the TX.
+      if (satoshisAvailable >= satoshisNeeded) {
+        break
+      }
+    }
+
+    // Calculate the remainder or 'change' to send back to the sender.
+    const change = satoshisAvailable - satoshisNeeded
+    // console.log(`change: ${change}`)
+
+    // If change is less than zero, something went wrong. Sanity check.
+    if (change < 0) {
+      console.error(
+        `Available satoshis (${satoshisAvailable}) below needed satoshis (${satoshisNeeded}).`
+      )
+      throw new Error('Insufficient balance')
+    }
+
+    // console.log(`necessaryUtxos: ${JSON.stringify(necessaryUtxos, null, 2)}`)
+    // console.log(`change: ${JSON.stringify(change, null, 2)}`)
+
+    return { necessaryUtxos, change }
+  }
+
+  // Sort the UTXOs by the size of satoshis they hold.
+  sortUtxosBySize (utxos, sortingOrder = 'ASCENDING') {
+    if (sortingOrder === 'ASCENDING') {
+      return utxos.sort((a, b) => a.value - b.value)
+    } else {
+      return utxos.sort((a, b) => b.value - a.value)
+    }
+  }
+
+  // Calculate the miner fee that needs to be paid for this transaction.
+  calculateFee (numInputs, numOutputs, satsPerByte) {
+    try {
+      const byteCount = this.bchjs.BitcoinCash.getByteCount(
+        { P2PKH: numInputs },
+        { P2PKH: numOutputs + 1 }
+      )
+
+      const fee = Math.ceil(byteCount * satsPerByte)
+
+      if (isNaN(fee)) {
+        throw new Error('Invalid input. Fee could not be calculated.')
+      }
+
+      return fee
+    } catch (err) {
+      console.error('Error in send-bch.js/calculateFee()')
+      throw err
+    }
+  }
+
+  // TODO: change the name of this function to getKeyPair()
+  // Generate a EC key pair.
+  async getKeyPairFromMnemonic (walletInfo) {
+    // console.log('getKeyPairFromMnemonic() walletInfo: ', walletInfo)
+
+    // If the wallet has a 12-word mnemonic, generate the key from there.
+    if (walletInfo.mnemonic) {
+      const rootSeed = await this.bchjs.Mnemonic.toSeed(walletInfo.mnemonic)
+      const masterHDNode = this.bchjs.HDNode.fromSeed(rootSeed /*, "bchtest" */)
+      const change = this.bchjs.HDNode.derivePath(
+        masterHDNode,
+        walletInfo.hdPath
+      )
+
+      const keyPair = this.bchjs.HDNode.toKeyPair(change)
+
+      return keyPair
+    } else {
+      // No mnemonic. Wallet generated from WIF private key.
+
+      const wif = walletInfo.privateKey
+      if (!wif) {
+        throw new Error('Wallet has no mnemonic or private key!')
+      }
+
+      const ecPair = this.bchjs.ECPair.fromWIF(walletInfo.privateKey)
+
+      return ecPair
+    }
+  }
+
+  // Top-level function that orchestrates the sending of BCH.
+  // Expects an array of BCH-only UTXOs. Does not check if UTXOs belong to a token,
+  // and will burn tokens if they are included in the UTXO list.
+  async sendAllBch (toAddress, walletInfo, utxos) {
+    try {
+      // Generate the transaction.
+      const transaction = await this.createSendAllTx(
+        toAddress,
+        walletInfo,
+        utxos
+      )
+      // console.log('transaction hex: ', transaction.hex)
+
+      // Broadcast the transaction to the network.
+      const txid = await this.ar.sendTx(transaction.hex)
+      // console.log(txid)
+
+      // TODO: Remove the spent UTXOs from the utxoStore.
+
+      return txid
+    } catch (err) {
+      console.error('Error in send-bch.js/sendAllBch()')
+      throw err
+    }
+  }
+
+  // Expects an array of BCH-only UTXOs. Does not check if UTXOs belong to a token,
+  // and will burn tokens if they are included in the UTXO list.
+  async createSendAllTx (toAddress, walletInfo, utxos) {
+    try {
+      // console.log(`walletInfo: ${JSON.stringify(walletInfo, null, 2)}`)
+      // console.log(`utxos: ${JSON.stringify(utxos, null, 2)}`)
+
+      // Validate Inputs
+      if (!toAddress || typeof toAddress !== 'string') {
+        throw new Error('Address to send must be a bch address')
+      }
+      // If the BCH utxos array is still empty, then throw an error.
+      if (!utxos || utxos.length === 0) {
+        throw new Error('UTXO list is empty')
+      }
+
+      // Create an instance of the Transaction Builder.
+      const transactionBuilder = new this.bchjs.TransactionBuilder()
+
+      // Set default value of 1 sat-per-byte if fee not specified.
+      if (!walletInfo.fee) walletInfo.fee = 1.0
+
+      const satsPerByte = walletInfo.fee
+
+      let totalAmount = 0
+
+      // Calculate Fee
+      let fee = this.calculateFee(0, 2, satsPerByte)
+      fee += PSF_DONATION
+
+      // Add inputs
+      utxos.forEach(utxo => {
+        totalAmount += utxo.value
+        // Additional cost per Utxo input is 148 sats for mining fees.
+        fee += 148
+        transactionBuilder.addInput(utxo.tx_hash, utxo.tx_pos)
+      })
+      // console.log(`totalAmount: ${totalAmount}`)
+      // console.log(`fee: ${fee}`)
+
+      // Add outputs
+      transactionBuilder.addOutput(toAddress, totalAmount - fee)
+
+      // Send a 2000 sat donation to PSF to thank them for creating this awesome software.
+      transactionBuilder.addOutput(bchDonation('psf').donations, PSF_DONATION)
+
+      // Generate a key pair from the mnemonic.
+      const keyPair = await this.getKeyPairFromMnemonic(walletInfo)
+
+      // Sign each UTXO that is about to be spent.
+      utxos.forEach((utxo, i) => {
+        let redeemScript
+
+        transactionBuilder.sign(
+          i,
+          keyPair,
+          redeemScript,
+          transactionBuilder.hashTypes.SIGHASH_ALL,
+          utxo.value
+        )
+      })
+
+      // Build the transaction, return the compiled transaction in hex format.
+      const tx = transactionBuilder.build()
+      return { hex: tx.toHex(), txid: tx.getId() }
+    } catch (err) {
+      console.error('Error in send-bch.js/createSendAllTx()')
+      throw err
+    }
+  }
+}
+
+module.exports = SendBCH
+
+```
+
+`/home/trout/work/psf/code/minimal-slp-wallet/lib/adapters/router.js`:
+
+```js
+/*
+  This file routes the network calls to the appropriate adapter, based on
+  how this library is instantiated. This allows the code for wallet functions
+  to be the same, while building different network adapters that are drop-in
+  replacements for one another.
+
+  If this.interface === 'rest-api', then use bch-js api.FullStack.cash
+  if this.interface === 'consumer-api', then use bch-consumer and free-bch.fullstack.cash.
+*/
+
+const BchConsumer = require('bch-consumer')
+
+class AdapterRouter {
+  constructor (localConfig = {}) {
+    // Dependency injection.
+    this.bchjs = localConfig.bchjs
+    if (!this.bchjs) {
+      throw new Error(
+        'Must pass instance of bch-js when instantiating AdapterRouter.'
+      )
+    }
+
+    // Select the interface to use for network calls.
+    this.interface = 'rest-api' // default
+    if (localConfig.interface === 'consumer-api') {
+      this.interface = 'consumer-api'
+      if (localConfig.restURL) {
+        this.bchConsumer = new BchConsumer({ restURL: localConfig.restURL })
+      } else {
+        this.bchConsumer = new BchConsumer()
+      }
+    }
+    console.log(`Initializing minimal-slp-wallet routers with this interface: ${this.interface}`)
+
+    // Allow the wallet service adapter to be overwritten at runtime.
+    // if (localConfig.walletService) {
+    //   this.walletService = localConfig.walletService
+    // } else {
+    //   // Use the default placeholder if service adapter is to specified.
+    //   this.walletService = new WalletConsumer(localConfig)
+    // }
+
+    // Bind 'this' object to all methods
+    this.getBalance = this.getBalance.bind(this)
+    this.getUtxos = this.getUtxos.bind(this)
+    this.getTransactions = this.getTransactions.bind(this)
+    this.getTxData = this.getTxData.bind(this)
+    this.sendTx = this.sendTx.bind(this)
+    this.getUsd = this.getUsd.bind(this)
+    this.utxoIsValid = this.utxoIsValid.bind(this)
+    this.getTokenData = this.getTokenData.bind(this)
+    this.getTokenData2 = this.getTokenData2.bind(this)
+    this.getPubKey = this.getPubKey.bind(this)
+    this.getPsfWritePrice = this.getPsfWritePrice.bind(this)
+    this.cid2json = this.cid2json.bind(this)
+  }
+
+  async getBalance (addr) {
+    try {
+      if (!addr) {
+        throw new Error('Address string required when calling getBalance()')
+      }
+
+      if (this.interface === 'rest-api') {
+        const balances = await this.bchjs.Electrumx.balance(addr)
+        return balances
+
+        //
+      } else if (this.interface === 'consumer-api') {
+        const result = await this.bchConsumer.bch.getBalance(addr)
+        // console.log('result: ', result)
+
+        // Handle failure from communicating with wallet service.
+        if (!result.success) {
+          throw new Error(result.message)
+        }
+
+        // Construct an object that matches the bchjs output.
+        const balances = {
+          success: result.success,
+          balance: result.balances[0].balance
+        }
+
+        return balances
+      }
+
+      throw new Error('this.interface is not specified')
+    } catch (err) {
+      console.error('Error in router.js/getBalance()')
+      throw err
+    }
+  }
+
+  // Get UTXOs from the network service.
+  async getUtxos (addr) {
+    try {
+      if (!addr) {
+        throw new Error('Address string required when calling getUtxos()')
+      }
+
+      // console.log(`getUtxos() this.interface: ${this.interface}`)
+      if (this.interface === 'rest-api') {
+        const utxos = await this.bchjs.Utxo.get(addr)
+        // console.log(`utxos: ${JSON.stringify(utxos, null, 2)}`)
+
+        return utxos
+      } else if (this.interface === 'consumer-api') {
+        const utxos = await this.bchConsumer.bch.getUtxos(addr)
+        // console.log(`utxos: ${JSON.stringify(utxos, null, 2)}`)
+
+        // Handle communication errors.
+        if (utxos[0].success === false) throw new Error(utxos[0].message)
+
+        return utxos[0]
+      }
+
+      throw new Error('this.interface is not specified')
+    } catch (err) {
+      console.error('Error in router.js/getUtxos()')
+      throw err
+    }
+  }
+
+  // Get transaction history for an address.
+  async getTransactions (addr, sortingOrder = 'DESCENDING') {
+    try {
+      if (!addr) {
+        throw new Error(
+          'Address string required when calling getTransactions()'
+        )
+      }
+
+      if (this.interface === 'rest-api') {
+        const data = await this.bchjs.Electrumx.transactions(addr)
+        // console.log('getTransactions() rest-api: ', data)
+
+        const sortedTxs = await this.bchjs.Electrumx.sortAllTxs(data.transactions, sortingOrder)
+        data.transactions = sortedTxs
+
+        return data
+
+        //
+      } else if (this.interface === 'consumer-api') {
+        const result = await this.bchConsumer.bch.getTxHistory(addr, sortingOrder)
+        // console.log(
+        //   `getTransactions() bchConsumer: ${JSON.stringify(result, null, 2)}`
+        // )
+
+        // Construct an object that matches the bchjs output.
+        const txs = {
+          success: result.success,
+          transactions: result.txs
+        }
+
+        return txs
+      }
+
+      throw new Error('this.interface is not specified')
+    } catch (err) {
+      console.error('Error in router.js/getBalance()')
+      throw err
+    }
+  }
+
+  // Get transaction details for an array of TXIDs, up to 20 elements.
+  async getTxData (txids) {
+    try {
+      if (!Array.isArray(txids)) {
+        throw new Error('Input txids must be an array of TXIDs. Up to 20.')
+      }
+
+      // console.log('minimal getTxData txids: ', txids)
+      // console.log('minimal interface: ', this.interface)
+
+      if (this.interface === 'rest-api') {
+        const data = []
+        for (let i = 0; i < txids.length; i++) {
+          const txid = txids[i]
+          // console.log('txid: ', txid)
+
+          const txData = await this.bchjs.PsfSlpIndexer.tx(txid)
+          data.push(txData.txData)
+        }
+
+        return data
+
+        //
+      } else if (this.interface === 'consumer-api') {
+        const result = await this.bchConsumer.bch.getTxData(txids)
+
+        return result
+      }
+
+      throw new Error('this.interface is not specified')
+    } catch (err) {
+      console.error('Error in router.js/getTxData()')
+      throw err
+    }
+  }
+
+  // Attempts to broadcast a transaction to the network. hex is expected to be
+  // a string containing a hexidecimal recresentation of the transaction.
+  async sendTx (hex) {
+    try {
+      if (!hex) {
+        throw new Error('Hex encoded transaction required as input.')
+      }
+
+      if (this.interface === 'rest-api') {
+        let txid = await this.bchjs.RawTransactions.sendRawTransaction([hex])
+        // console.log('txid: ', txid)
+
+        // bch-js returns an array. Refactor this to return a string.
+        txid = txid[0]
+
+        return txid
+      } else if (this.interface === 'consumer-api') {
+        const txid = await this.bchConsumer.bch.sendTx(hex)
+        // console.log('sendTx() txid: ', txid)
+
+        if (txid.success === false) throw new Error(txid.message)
+
+        return txid.txid
+      }
+
+      throw new Error('this.interface is not specified')
+    } catch (err) {
+      console.error('Error in router.js/sendTx()')
+
+      if (err.error) throw new Error(err.error)
+      throw err
+    }
+  }
+
+  // Get the current price for BCH in USD.
+  async getUsd () {
+    try {
+      if (this.interface === 'rest-api') {
+        const price = await this.bchjs.Price.getUsd()
+        return price
+      } else if (this.interface === 'consumer-api') {
+        const price = await this.bchConsumer.bch.getUsd()
+        return price
+      }
+
+      throw new Error('this.interface is not specified')
+    } catch (err) {
+      console.error('Error in minimal-slp-wallet/getPrice()')
+
+      throw err
+    }
+  }
+
+  // Validate that a UTXO is spendable.
+  async utxoIsValid (utxo) {
+    try {
+      if (!utxo) {
+        throw new Error('utxo required as input.')
+      }
+
+      if (this.interface === 'rest-api') {
+        const isValid = await this.bchjs.Utxo.isValid(utxo)
+        return isValid
+      } else if (this.interface === 'consumer-api') {
+        const result = await this.bchConsumer.bch.utxoIsValid(utxo)
+        return result.isValid
+      }
+
+      throw new Error('this.interface is not specified')
+    } catch (err) {
+      console.error('Error in minimal-slp-wallet/utxoIsValid()')
+
+      throw err
+    }
+  }
+
+  // Get mutable and immutable data associated with a token
+  async getTokenData (tokenId, withTxHistory = false, sortOrder = 'DESCENDING') {
+    try {
+      if (!tokenId) {
+        throw new Error('tokenId required as input.')
+      }
+
+      let tokenData
+
+      if (this.interface === 'rest-api') {
+        tokenData = await this.bchjs.PsfSlpIndexer.getTokenData(tokenId, withTxHistory)
+        // return tokenData
+      } else if (this.interface === 'consumer-api') {
+        tokenData = await this.bchConsumer.bch.getTokenData(tokenId, withTxHistory)
+        // console.log('tokenData: ', JSON.stringify(tokenData, null, 2))
+
+        // Handle failure from communicating with wallet service.
+        if (!tokenData.success) {
+          throw new Error(tokenData.message)
+        }
+
+        tokenData = tokenData.tokenData
+      }
+
+      // If the token history is requested, then sort the transactions.
+      // TODO: the Electrumx.sortAllTxs() makes a call to get the block height,
+      // which could be problematic. It would be best to pull that function out
+      // of the bch-js library and create a utility function in this library.
+      if (withTxHistory) {
+        if (!tokenData.genesisData.txs) {
+          throw new Error('No transaction history included with genesis data.')
+        }
+
+        // 4/6/23 CT - commented out this sorting function because it depends on
+        // a network call to bch-api, which is not available when this function
+        // is called with the consumer-api interface. I believe this sorting
+        // is redundent anyways. It was put here as a temporary fix until the
+        // sorting was added to bch-api, which it has been.
+        // const sortedTxs = await this.bchjs.Electrumx.sortAllTxs(tokenData.genesisData.txs, sortOrder)
+        // tokenData.genesisData.txs = sortedTxs
+      }
+
+      return tokenData
+
+      // throw new Error('this.interface is not specified')
+    } catch (err) {
+      console.error('Error in minimal-slp-wallet/getTokenData()')
+
+      throw err
+    }
+  }
+
+  // Get token icon and other media
+  async getTokenData2 (tokenId, updateCache = false) {
+    try {
+      if (!tokenId) {
+        throw new Error('tokenId required as input.')
+      }
+
+      if (this.interface === 'rest-api') {
+        const tokenData = await this.bchjs.PsfSlpIndexer.getTokenData2(tokenId, updateCache)
+        return tokenData
+      } else if (this.interface === 'consumer-api') {
+        const tokenData = await this.bchConsumer.bch.getTokenData2(tokenId, updateCache)
+        return tokenData.tokenData
+      }
+
+      throw new Error('this.interface is not specified')
+    } catch (err) {
+      console.error('Error in minimal-slp-wallet/getTokenData2()')
+
+      throw err
+    }
+  }
+
+  // Get a public key for a given address. This can be used to send encrypted
+  // messages to the address.
+  async getPubKey (addr) {
+    try {
+      if (!addr) {
+        throw new Error('addr required as input.')
+      }
+
+      if (this.interface === 'rest-api') {
+        let pubKey
+        try {
+          pubKey = await this.bchjs.encryption.getPubKey(addr)
+          // console.log('pubKey: ', pubKey)
+        } catch (err) {
+          // console.log('err: ', err)
+          throw new Error(err.error)
+        }
+
+        // console.log('pubKey: ', pubKey)
+
+        return pubKey.publicKey
+      } else if (this.interface === 'consumer-api') {
+        const result = await this.bchConsumer.msg.getPubKey(addr)
+        // console.log('result: ', result)
+
+        if (!result.success) {
+          throw new Error(result.message)
+        }
+
+        return result.pubkey.publicKey
+      }
+
+      throw new Error('this.interface is not specified')
+    } catch (err) {
+      console.error('Error in minimal-slp-wallet/router.js/getPubKey()')
+
+      throw err
+    }
+  }
+
+  // Retrieve the current price in PSF tokens to write 1MB of data to the
+  // PSFFPP (psffpp.com) IPFS pinning network.
+  async getPsfWritePrice () {
+    try {
+      let price
+
+      if (this.interface === 'rest-api') {
+        try {
+          price = await this.bchjs.Price.getPsffppPrice()
+          console.log('price: ', price)
+        } catch (err) {
+          console.log('err: ', err)
+          throw new Error(err.error)
+        }
+
+        return price
+      } else if (this.interface === 'consumer-api') {
+        price = await this.bchConsumer.bch.getPsffppWritePrice()
+        // console.log('result: ', result)
+
+        return price
+      }
+
+      throw new Error('this.interface is not specified')
+    } catch (err) {
+      console.error('Error in minimal-slp-wallet/router.js/getPsfWritePrice()')
+
+      throw err
+    }
+  }
+
+  // Convert a CID to a JSON object.
+  async cid2json (inObj = {}) {
+    try {
+      const { cid } = inObj
+      // console.log('router.js/cid2json() cid: ', cid)
+
+      if (!cid) {
+        throw new Error('cid required as input.')
+      }
+
+      if (this.interface === 'rest-api') {
+        throw new Error('cid2json() is not supported with the rest-api interface.')
+      } else if (this.interface === 'consumer-api') {
+        const result = await this.bchConsumer.bch.cid2json({ cid })
+        return result
+      }
+
+      throw new Error('this.interface is not specified')
+    } catch (err) {
+      if (err.isAxiosError) {
+        const errMsg = err.response.data
+
+        console.error('Error in minimal-slp-wallet/router.js/cid2json()')
+        throw new Error(errMsg)
+      } else {
+        console.error('Error in minimal-slp-wallet/router.js/cid2json()')
+        throw err
+      }
+    }
+  }
+}
+
+module.exports = AdapterRouter
+
+```
+
+`/home/trout/work/psf/code/minimal-slp-wallet/lib/utxos.js`:
+
+```js
+/*
+  A utility library for handling, analyzing, and maintaining a collection of UTXOs.
+
+  TODO:
+
+*/
+
+// const BCHJS = require('@psf/bch-js')
+// const AdapterRouter = require('./adapters/router')
+
+// let this
+
+class UTXOs {
+  constructor (localConfig = {}) {
+    // Dependency injection.
+    this.bchjs = localConfig.bchjs
+    if (!this.bchjs) {
+      throw new Error(
+        'Must pass instance of bch-js when instantiating AdapterRouter.'
+      )
+    }
+    this.ar = localConfig.ar
+    if (!this.ar) {
+      throw new Error('Must pass instance of Adapter Router.')
+    }
+
+    // Encapsulate dependencies.
+    // this.bchjs = new BCHJS(config)
+    // this.bchjs = new BCHJS({ restURL: 'http://localhost:3000/v3/' })
+    // this.ar = new AdapterRouter({ bchjs: this.bchjs })
+
+    // UTXO storage. Used as a cache for UTXO information to reduce the number
+    // of network calls required to retrieve a UTXO.
+    this.utxoStore = {}
+
+    this.temp = []
+
+    // This should be the last command in the constructor.
+    // this is a local global variable for when 'this' loses scope.
+    // this = this
+  }
+
+  // Retrieve UTXO data for the wallet from the blockchain.
+  async initUtxoStore (addr) {
+    try {
+      // Clear the utxo store.
+      this.utxoStore = []
+
+      // const utxos = await this.bchjs.Utxo.get(addr)
+      const utxos = await this.ar.getUtxos(addr)
+      // console.log(`utxos: ${JSON.stringify(utxos, null, 2)}`)
+
+      // Handle network failures.
+      if (utxos.status > 399) {
+        throw new Error(utxos.message)
+      }
+
+      this.utxoStore = utxos
+
+      return this.utxoStore
+    } catch (err) {
+      console.error('Error in utxos.js/initUtxoStore()')
+      throw err
+    }
+  }
+
+  // Return the token UTXOs that are spendible. This currently only includes
+  // Type 1. Group, and NFT tokens are not yet supported. It ignores minting
+  // batons.
+  getSpendableTokenUtxos () {
+    try {
+      // console.log('this.utxoStore: ', this.utxoStore)
+      // console.log(`this.utxoStore: ${JSON.stringify(this.utxoStore, null, 2)}`)
+
+      // This was used in bch-js v4 when SLPDB was used. This can hopefully be
+      // used again when psf-slp-indexer supports NFTs.
+      const tokenUtxos = this.utxoStore.slpUtxos.type1.tokens.concat(
+        this.utxoStore.slpUtxos.nft.tokens,
+        this.utxoStore.slpUtxos.group.tokens
+      )
+
+      // const tokenUtxos = this.utxoStore.slpUtxos.type1.tokens
+      // console.log(
+      //   `getSpendableTokenUtxos tokenUtxos: ${JSON.stringify(
+      //     tokenUtxos,
+      //     null,
+      //     2
+      //   )}`
+      // )
+
+      return tokenUtxos
+    } catch (err) {
+      console.error('Error in utxos.js/getSpendableTokenUtxos()')
+      throw err
+    }
+  }
+}
+
+module.exports = UTXOs
+
+```
+
+`/home/trout/work/psf/code/minimal-slp-wallet/lib/tokens.js`:
+
+```js
+/*
+  This library provides functions for dealing with SLP tokens.
+*/
+
+// External npm dependencies.
+// const BCHJS = require('@psf/bch-js')
+const bchDonation = require('bch-donation')
+
+// Local dependencies
+const SendBCH = require('./send-bch')
+const Utxos = require('./utxos')
+// const AdapterRouter = require('./adapters/router')
+
+// let this
+
+// Send the Permissionless Software Foundation a donation to thank them for creating
+// and maintaining this software.
+const PSF_DONATION = 2000
+
+class Tokens {
+  constructor (localConfig = {}) {
+    // Dependency injection.
+    this.bchjs = localConfig.bchjs
+    if (!this.bchjs) {
+      throw new Error('Must pass instance of bch-js when instantiating Tokens library.')
+    }
+    this.ar = localConfig.ar
+    if (!this.ar) {
+      throw new Error('Must pass instance of Adapter Router.')
+    }
+
+    // Encapsulate dependencies.
+    // this.bchjs = new BCHJS(localConfig)
+    this.sendBch = new SendBCH(localConfig)
+    this.utxos = new Utxos(localConfig)
+    // this.ar = new AdapterRouter({ bchjs: this.bchjs })
+
+    // This should be the last command in the constructor.
+    // this is a local global variable for when 'this' loses scope.
+    // this = this
+  }
+
+  // This is a wrapper for listTokensFromUtxos(). It takes a BCH address,
+  // retrieves the UTXOs for that address and feeds it to listTokensFromUtxos().
+  // It returns the results.
+  async listTokensFromAddress (addr) {
+    try {
+      if (!addr) throw new Error('Address not provided')
+
+      // Convert to a BCH address.
+      addr = this.bchjs.SLP.Address.toCashAddress(addr)
+
+      // Refresh the utxo store.
+      await this.utxos.initUtxoStore(addr)
+      // console.log(
+      //   `this.utxos.utxoStore: ${JSON.stringify(this.utxos.utxoStore, null, 2)}`
+      // )
+
+      const hydratedUtxos = this.utxos.getSpendableTokenUtxos()
+      // console.log(`hydratedUtxos: ${JSON.stringify(hydratedUtxos, null, 2)}`)
+
+      return this.listTokensFromUtxos(hydratedUtxos)
+    } catch (err) {
+      console.error('Error in tokens.js/listTokensFromAddress()')
+      throw err
+    }
+  }
+
+  // This function calls listTokensFromAddress(), then filters the results for
+  // a specific token, and returns the balance of that token. If the token is
+  // not found, it returns 0.
+  async getTokenBalance (tokenId, addr) {
+    try {
+      // Input validation.
+      if (!tokenId) throw new Error('token ID not provided')
+      if (!addr) throw new Error('Address not provided')
+      console.log('tokenId: ', tokenId)
+
+      // Get an array of tokens held by the address.
+      const tokens = await this.listTokensFromAddress(addr)
+      // console.log('tokens: ', tokens)
+
+      // Filter out the token of interest.
+      const token = tokens.filter(x => x.tokenId === tokenId)
+
+      // If there are no tokens matching the token ID, return 0.
+      if (!token.length) {
+        return 0
+      }
+
+      // Return the token balance.
+      return token[0].qty
+    } catch (err) {
+      console.error('Error in tokens.js/getTokenBalance()')
+      throw err
+    }
+  }
+
+  // Returns an array of Objects with token information. Expects an array of
+  // hydrated UTXOs as input.
+  listTokensFromUtxos (utxos) {
+    try {
+      // console.log(
+      //   `listTokensFromUtxos utxos: ${JSON.stringify(utxos, null, 2)}`
+      // )
+
+      // Array used to assemble token information.
+      const tokenInfo = []
+
+      utxos.forEach(utxo => {
+        // console.log(`utxo: ${JSON.stringify(utxo, null, 2)}`)
+
+        // Skip if this is not a valid token UTXO.
+        // if (!utxo.isValid) return
+        if (!utxo.isSlp || utxo.type !== 'token') return
+
+        // Check if the current UTXO represents a token that is already in the
+        // tokenInfo array.
+        const exists = tokenInfo.findIndex(
+          thisToken => thisToken.tokenId === utxo.tokenId
+        )
+        // console.log(`exists: ${JSON.stringify(exists, null, 2)}`)
+
+        // Token does not exist yet in the list.
+        if (exists < 0) {
+          const infoObj = {
+            tokenId: utxo.tokenId,
+            ticker: utxo.ticker,
+            name: utxo.name,
+            decimals: utxo.decimals,
+            tokenType: utxo.tokenType,
+            url: utxo.documentUri,
+            qty: Number(utxo.qtyStr)
+          }
+
+          tokenInfo.push(infoObj)
+        } else {
+          // Token already exists in the tokenInfo array.
+          // Just update the quantity.
+          tokenInfo[exists].qty += Number(utxo.qtyStr)
+        }
+      })
+
+      return tokenInfo
+    } catch (err) {
+      console.error('Error in tokens.js/listTokensFromUtxos()')
+      throw err
+    }
+  }
+
+  // Top-level wrapper function that orchestrates the sending of tokens.
+  // output is a single object that looks like this:
+  // {
+  //     address: "simpleledger:qqwsylce7r5ufe4mfc94xkd56t30ncnanqahwq6kvv",
+  //     tokenId: "497291b8a1dfe69c8daea50677a3d31a5ef0e9484d8bebb610dac64bbc202fb7",
+  //     qty: 1
+  // }
+  async sendTokens (
+    output,
+    walletInfo,
+    bchUtxos,
+    tokenUtxos,
+    satsPerByte = 1.0,
+    opts = {}
+  ) {
+    try {
+      // Generate the transaction.
+      const transaction = await this.createTransaction(
+        output,
+        walletInfo,
+        bchUtxos,
+        tokenUtxos,
+        satsPerByte,
+        opts
+      )
+
+      // Debugging.
+      // console.log('transaction hex: ', transaction.hex)
+
+      // Broadcast the transaction to the network.
+      const txid = await this.ar.sendTx(transaction.hex)
+      // console.log(txid)
+
+      // TODO: Remove the spent UTXOs from the utxoStore.
+
+      return txid
+    } catch (err) {
+      console.error('Error in tokens.js/sendTokens()')
+      throw err
+    }
+  }
+
+  // Build the transaction for sending a token.
+  async createTransaction (
+    output,
+    walletInfo,
+    bchUtxos,
+    tokenUtxos,
+    satsPerByte = 1.0,
+    opts = {}
+  ) {
+    try {
+      // console.log('createTransaction() start tokenUtxos: ', tokenUtxos)
+      // console.log('output: ', output)
+
+      // If the BCH utxos array is still empty, then throw an error.
+      if (!bchUtxos || bchUtxos.length === 0) {
+        throw new Error('BCH UTXO list is empty')
+      }
+
+      // If the BCH utxos array is still empty, then throw an error.
+      if (!tokenUtxos || tokenUtxos.length === 0) {
+        throw new Error('Token UTXO list is empty')
+      }
+
+      // Collect just the UTXOs that match the user-selected token ID.
+      const tokenId = output.tokenId
+
+      // Filter out the token UTXOs that match the selected token ID.
+      // tokenUtxos = tokenUtxos.filter(e => e.tokenId === tokenId)
+      tokenUtxos = tokenUtxos.filter(
+        e => e.tokenId === tokenId && e.type === 'token'
+      )
+      // console.log(`tokenUtxos: ${JSON.stringify(tokenUtxos, null, 2)}`)
+      // console.log(`tokenUtxos[0].tokenType: ${tokenUtxos[0].tokenType}`)
+
+      if (tokenUtxos.length === 0) throw new Error(`Token UTXO with token ID ${tokenId} not found!`)
+
+      // Generate the BCH output object.
+      const bchOutput = [
+        {
+          address: walletInfo.cashAddress,
+
+          // Premium paid for SLP OP_RETURN data.
+          // ToDo: Add a better way to calculate extra costs of OP_RETURN.
+          // amountSat: 500
+          amountSat: 500 + 50 * satsPerByte
+        }
+      ]
+
+      // Determine the UTXOs needed to be spent for this TX, and the change
+      // that will be returned to the wallet.
+      const {
+        necessaryUtxos,
+        change
+      } = this.sendBch.getNecessaryUtxosAndChange(
+        bchOutput,
+        bchUtxos,
+        satsPerByte,
+        opts
+      )
+
+      // Create an instance of the Transaction Builder.
+      const transactionBuilder = new this.bchjs.TransactionBuilder()
+
+      // Add token inputs
+      if (opts.tokenUtxosFilter) {
+        tokenUtxos = opts.tokenUtxosFilter(tokenUtxos)
+      }
+
+      tokenUtxos.forEach(utxo => {
+        transactionBuilder.addInput(utxo.tx_hash, utxo.tx_pos)
+      })
+
+      // Add BCH inputs
+      necessaryUtxos.forEach(utxo => {
+        transactionBuilder.addInput(utxo.tx_hash, utxo.tx_pos)
+      })
+
+      // Add required tokenQty property used by generateSendOpReturn()
+      tokenUtxos = tokenUtxos.map(x => {
+        x.tokenQty = parseFloat(x.qtyStr)
+        return x
+      })
+
+      // console.log('tokens.js tokenUtxos: ', tokenUtxos)
+
+      // Generate the proper SLP OP_RETURN
+      let slpSendObj = {}
+      // Fungable SLP token.
+      if (tokenUtxos[0].tokenType === 1) {
+        slpSendObj = await this.bchjs.SLP.TokenType1.generateSendOpReturn(
+          tokenUtxos,
+          output.qty
+        )
+
+      // NFT (Child)
+      } else if (tokenUtxos[0].tokenType === 65) {
+        slpSendObj = await this.bchjs.SLP.NFT1.generateNFTChildSendOpReturn(
+          tokenUtxos,
+          output.qty
+        )
+
+        // NFT Group
+      } else if (tokenUtxos[0].tokenType === 129) {
+        slpSendObj = await this.bchjs.SLP.NFT1.generateNFTGroupSendOpReturn(
+          tokenUtxos,
+          output.qty
+        )
+
+        // throw an error for any other token type.
+      } else throw new Error(`Token Type ${tokenUtxos[0].tokenType} unknown`)
+
+      const slpBuf = Buffer.from(slpSendObj.script, 'hex')
+      transactionBuilder.addOutput(slpBuf, 0)
+
+      // Send dust transaction representing tokens being sent.
+      transactionBuilder.addOutput(
+        this.bchjs.SLP.Address.toLegacyAddress(output.address),
+        546
+      )
+
+      // Return any token change back to the sender.
+      if (slpSendObj.outputs > 1) {
+        transactionBuilder.addOutput(
+          this.bchjs.SLP.Address.toLegacyAddress(walletInfo.address),
+          546
+        )
+      }
+
+      // Add outputs
+      // outputs.forEach(receiver => {
+      //   transactionBuilder.addOutput(receiver.address, receiver.amountSat)
+      // })
+      // transactionBuilder.addOutput(output.address, output.amountSat)
+
+      // Send a 2000 sat donation to PSF to thank them for creating this awesome software.
+      // console.log(`psf: ${bchDonation('psf').donations}`)
+      transactionBuilder.addOutput(bchDonation('psf').donations, PSF_DONATION)
+
+      // Send change back to the wallet, if it's bigger than dust.
+      // console.log(`change: ${change}`)
+      if (change && change > 546) {
+        transactionBuilder.addOutput(walletInfo.cashAddress, change)
+      }
+
+      // Generate a key pair from the mnemonic.
+      const keyPair = await this.sendBch.getKeyPairFromMnemonic(walletInfo)
+
+      // Sign each UTXO that is about to be spent.
+      tokenUtxos.forEach((utxo, i) => {
+        let redeemScript
+
+        transactionBuilder.sign(
+          i,
+          keyPair,
+          redeemScript,
+          transactionBuilder.hashTypes.SIGHASH_ALL,
+          utxo.value
+        )
+      })
+
+      // Sign each UTXO that is about to be spent.
+      necessaryUtxos.forEach((utxo, i) => {
+        let redeemScript
+
+        transactionBuilder.sign(
+          tokenUtxos.length + i,
+          keyPair,
+          redeemScript,
+          transactionBuilder.hashTypes.SIGHASH_ALL,
+          utxo.value
+        )
+      })
+
+      // Build the transaction, return the compiled transaction in hex format.
+      const tx = transactionBuilder.build()
+      return { hex: tx.toHex(), txid: tx.getId() }
+    } catch (err) {
+      console.error('Error in tokens.js/createTransaction()')
+      throw err
+    }
+  }
+
+  // Build the transaction to burn tokens.
+  async createBurnTransaction (
+    qty,
+    tokenId,
+    walletInfo,
+    bchUtxos,
+    tokenUtxos,
+    satsPerByte = 1.0
+  ) {
+    try {
+      if (!qty || typeof qty !== 'number') {
+        throw new Error('qty must be number')
+      }
+      if (!tokenId || typeof tokenId !== 'string') {
+        throw new Error('tokenId must be string')
+      }
+      if (!walletInfo || typeof walletInfo !== 'object') {
+        throw new Error('walletInfo must be a object')
+      }
+      // If the BCH utxos array is still empty, then throw an error.
+      if (!bchUtxos || bchUtxos.length === 0) {
+        throw new Error('BCH UTXO list is empty')
+      }
+      // If the BCH utxos array is still empty, then throw an error.
+      if (!tokenUtxos || tokenUtxos.length === 0) {
+        throw new Error('Token UTXO list is empty')
+      }
+
+      // Filter out the token UTXOs that match the selected token ID.
+      // tokenUtxos = tokenUtxos.filter(e => e.tokenId === tokenId)
+      tokenUtxos = tokenUtxos.filter(
+        e => e.tokenId === tokenId && e.type === 'token'
+      )
+      if (!tokenUtxos.length) {
+        throw new Error('tokenId does not match')
+      }
+      // console.log(`tokenUtxos: ${JSON.stringify(tokenUtxos, null, 2)}`)
+      // console.log(`tokenUtxos[0].tokenType: ${tokenUtxos[0].tokenType}`)
+
+      // Throw an error if the number of tokens in the wallet are less than the
+      // number of tokens to be burned.
+      let tokenQty = 0
+      for (let i = 0; i < tokenUtxos.length; i++) {
+        const thisUtxo = tokenUtxos[i]
+
+        tokenQty += parseFloat(thisUtxo.tokenQty)
+      }
+      if (tokenQty < qty) {
+        throw new Error(`Available tokens are ${tokenQty}, which is less than quantity to burn (${qty})`)
+      }
+
+      // Generate the BCH output object.
+      const bchOutput = [
+        {
+          address: walletInfo.cashAddress,
+
+          // Premium paid for SLP OP_RETURN data.
+          // ToDo: Add a better way to calculate extra costs of OP_RETURN.
+          // amountSat: 500
+          amountSat: 500 + 50 * satsPerByte
+        }
+      ]
+
+      // Determine the UTXOs needed to be spent for this TX, and the change
+      // that will be returned to the wallet.
+      const {
+        necessaryUtxos,
+        change
+      } = this.sendBch.getNecessaryUtxosAndChange(
+        bchOutput,
+        bchUtxos,
+        satsPerByte
+      )
+
+      // Create an instance of the Transaction Builder.
+      const transactionBuilder = new this.bchjs.TransactionBuilder()
+
+      // Add token inputs
+      tokenUtxos.forEach(utxo => {
+        transactionBuilder.addInput(utxo.tx_hash, utxo.tx_pos)
+      })
+
+      // Add BCH inputs
+      necessaryUtxos.forEach(utxo => {
+        transactionBuilder.addInput(utxo.tx_hash, utxo.tx_pos)
+      })
+
+      // Add legacy property to token UTXOs.
+      tokenUtxos.map(x => {
+        x.tokenQty = x.qtyStr
+        return x
+      })
+
+      // Generate the proper SLP OP_RETURN
+      const slpSendObj = await this.bchjs.SLP.TokenType1.generateBurnOpReturn(
+        tokenUtxos,
+        qty
+      )
+
+      const slpBuf = slpSendObj // Buffer.from(slpSendObj.script, 'hex')
+      transactionBuilder.addOutput(slpBuf, 0)
+
+      // Send dust transaction representing tokens being sent.
+      transactionBuilder.addOutput(
+        this.bchjs.SLP.Address.toLegacyAddress(walletInfo.address),
+        546
+      )
+
+      // Send a 2000 sat donation to PSF to thank them for creating this awesome software.
+      // console.log(`psf: ${bchDonation('psf').donations}`)
+      transactionBuilder.addOutput(bchDonation('psf').donations, PSF_DONATION)
+
+      // Send change back to the wallet, if it's bigger than dust.
+      // console.log(`change: ${change}`)
+      if (change && change > 546) {
+        transactionBuilder.addOutput(walletInfo.cashAddress, change)
+      }
+
+      // Generate a key pair from the mnemonic.
+      const keyPair = await this.sendBch.getKeyPairFromMnemonic(walletInfo)
+
+      // Sign each UTXO that is about to be spent.
+      tokenUtxos.forEach((utxo, i) => {
+        let redeemScript
+
+        transactionBuilder.sign(
+          i,
+          keyPair,
+          redeemScript,
+          transactionBuilder.hashTypes.SIGHASH_ALL,
+          utxo.value
+        )
+      })
+
+      // Sign each UTXO that is about to be spent.
+      necessaryUtxos.forEach((utxo, i) => {
+        let redeemScript
+
+        transactionBuilder.sign(
+          tokenUtxos.length + i,
+          keyPair,
+          redeemScript,
+          transactionBuilder.hashTypes.SIGHASH_ALL,
+          utxo.value
+        )
+      })
+
+      // Build the transaction, return the compiled transaction in hex format.
+      const tx = transactionBuilder.build()
+      return { hex: tx.toHex(), txid: tx.getId() }
+    } catch (err) {
+      console.error('Error in tokens.js/createBurnTransaction()')
+      throw err
+    }
+  }
+
+  // Burn a *specific quantity* of tokens.
+  async burnTokens (
+    qty,
+    tokenId,
+    walletInfo,
+    bchUtxos,
+    tokenUtxos,
+    satsPerByte = 1.0
+  ) {
+    try {
+      // Generate the transaction.
+      const transaction = await this.createBurnTransaction(
+        qty,
+        tokenId,
+        walletInfo,
+        bchUtxos,
+        tokenUtxos,
+        satsPerByte
+      )
+
+      // Debugging.
+      // console.log('transaction hex: ', transaction.hex)
+
+      // Broadcast the transaction to the network.
+      const txid = await this.ar.sendTx(transaction.hex)
+
+      // TODO: Remove the spent UTXOs from the utxoStore.
+
+      return txid
+    } catch (err) {
+      console.error('Error in tokens.js/burnTokens()')
+      throw err
+    }
+  }
+
+  // Burn ALL the SLP tokens in the wallet associated to the tokenID
+  async burnAll (tokenId, walletInfo, bchUtxos, tokenUtxos) {
+    try {
+      // Input validation
+      // If the SLP utxos array is still empty, then throw an error.
+      if (!tokenId || typeof tokenId !== 'string') {
+        throw new Error('tokenId must be a string')
+      }
+      // If the SLP utxos array is still empty, then throw an error.
+      if (!walletInfo || typeof walletInfo !== 'object') {
+        throw new Error('walletInfo is required')
+      }
+
+      // If the BCH utxos array is empty, then throw an error.
+      if (!bchUtxos || bchUtxos.length === 0) {
+        throw new Error('BCH UTXO list is empty')
+      }
+      // console.log(`burnAll() bchUtxos: ${JSON.stringify(bchUtxos, null, 2)}`)
+
+      // If the SLP utxos array is empty, then throw an error.
+      if (!tokenUtxos || tokenUtxos.length === 0) {
+        throw new Error('SLP UTXO list is empty')
+      }
+      // console.log(`burnAll() tokenUtxos: ${JSON.stringify(tokenUtxos, null, 2)}`)
+      // console.log(`tokenId: ${tokenId}`)
+
+      // Get the SLP UTXOs of the tokens to be burned
+      tokenUtxos = tokenUtxos.filter(
+        e => e.tokenId === tokenId && e.type === 'token'
+      )
+      // console.log(`burnAll() tokenUtxos after filtering: ${JSON.stringify(tokenUtxos, null, 2)}`)
+
+      if (tokenUtxos.length === 0) {
+        throw new Error(`No token UTXOs found to burn after filtering, for token ID ${tokenId}`)
+      }
+
+      // UTXOs array that contains the SLP UTXOs to burn
+      // and the necessary BCH UTXOs to pay the fee
+      const utxos = tokenUtxos.concat(bchUtxos)
+      // console.log(`combined utxos: ${JSON.stringify(utxos, null, 2)}`)
+
+      const txid = await this.sendBch.sendAllBch(
+        walletInfo.cashAddress,
+        walletInfo,
+        utxos
+      )
+
+      return txid
+    } catch (err) {
+      console.error('Error in tokens.js/burnAll()')
+      throw err
+    }
+  }
+}
+
+module.exports = Tokens
+
+```
+
+`/home/trout/work/psf/code/minimal-slp-wallet/lib/op-return.js`:
+
+```js
+/*
+  This library contains utility functions for crafting transactions that
+  contain an OP_RETURN output.
+*/
+
+// Public npm libraries
+const bchDonation = require('bch-donation')
+
+// Local libraries
+const SendBCH = require('./send-bch')
+
+const PSF_DONATION = 2000
+
+class OpReturn {
+  constructor (localConfig = {}) {
+    // Dependency injection.
+    this.bchjs = localConfig.bchjs
+    if (!this.bchjs) {
+      throw new Error(
+        'Must pass instance of bch-js when instantiating OpReturn library.'
+      )
+    }
+    this.ar = localConfig.ar
+    if (!this.ar) {
+      throw new Error('Must pass instance of Adapter Router.')
+    }
+
+    // Encapsulate dependencies.
+    // this.bchjs = new BCHJS(localConfig)
+    this.sendBch = new SendBCH(localConfig)
+    // this.utxos = new Utxos(localConfig)
+    // this.ar = new AdapterRouter({ bchjs: this.bchjs })
+  }
+
+  // Calculate the miner fee that needs to be paid for this transaction.
+  // Takes the size of the OP_RETURN buffer size into account.
+  calculateFee (numInputs, numOutputs, bufSize = 3, satsPerByte) {
+    try {
+      const byteCount = this.bchjs.BitcoinCash.getByteCount(
+        { P2PKH: numInputs },
+        { P2PKH: numOutputs + 1 }
+      )
+
+      // console.log(`satsPerByte: ${satsPerByte}`)
+
+      let fee = Math.ceil(byteCount * satsPerByte)
+      // console.log(`fee before op_return: ${fee}`)
+
+      // Adjust for the buffer size of the op_return
+      const minOpReturnFee = 10
+      fee = fee + minOpReturnFee + Math.ceil(bufSize * satsPerByte)
+      // console.log(`Fee with an OP_RETURN buffer size of ${bufSize}: ${fee}`)
+
+      if (isNaN(fee)) {
+        throw new Error('Invalid input. Fee could not be calculated.')
+      }
+
+      return fee
+    } catch (err) {
+      console.error('Error in send-bch.js/calculateFee()')
+      throw err
+    }
+  }
+
+  // Get the UTXOs required to generate a transaction.
+  // Uses the smallest UTXOs first, which maximizes the number UTXOs used.
+  // This helps reduce the total number UTXOs in the wallet, which is efficient
+  // for limiting the number of network calls, and leads to better UX.
+  getNecessaryUtxosAndChange (
+    outputs,
+    availableUtxos,
+    bufLen,
+    satsPerByte = 1.0
+  ) {
+    const sortedUtxos = this.sendBch.sortUtxosBySize(
+      availableUtxos,
+      'ASCENDING'
+    )
+    // console.log(`sortedUtxos: ${JSON.stringify(sortedUtxos, null, 2)}`)
+
+    // const satsPerByte = 1.0
+
+    // Calculate the miner fee, assuming inputs (this cost will be added later).
+    // Change is assumed, that is the +1.
+    const fee = this.calculateFee(0, outputs.length + 1, bufLen, satsPerByte)
+    // console.log(`fee: ${fee}`)
+
+    // Calculate the satoshis needed (minus the fee for each input)
+    const satoshisToSend = outputs.reduce(
+      (acc, receiver) => acc + receiver.amountSat,
+      0
+    )
+    let satoshisNeeded = satoshisToSend + fee + PSF_DONATION
+    // console.log(`satoshis needed: ${satoshisNeeded}`)
+
+    let satoshisAvailable = 0
+    const necessaryUtxos = []
+
+    // Add each UTXO to the calculation until enough satoshis are found.
+    for (const utxo of sortedUtxos) {
+      // TODO: Check getTxOut() on the full node to verify the UTXO is valid.
+
+      // TODO: Check the ancestor history to make sure the UTXO won't fail the
+      // 50-chain limit rule.
+
+      // Add the next UTXO.
+      necessaryUtxos.push(utxo)
+      satoshisAvailable += utxo.value
+
+      // Additional cost per Utxo input is 148 sats for mining fees.
+      satoshisNeeded += 148
+
+      // Exit the loop once enough UTXOs are found to pay the the TX.
+      if (satoshisAvailable >= satoshisNeeded) {
+        break
+      }
+    }
+
+    // Calculate the remainder or 'change' to send back to the sender.
+    const change = satoshisAvailable - satoshisNeeded
+    // console.log(`change: ${change}`)
+
+    // If change is less than zero, something went wrong. Sanity check.
+    if (change < 0) {
+      console.error(
+        `Available satoshis (${satoshisAvailable}) below needed satoshis (${satoshisNeeded}).`
+      )
+      throw new Error('Insufficient balance')
+    }
+
+    // console.log(`necessaryUtxos: ${JSON.stringify(necessaryUtxos, null, 2)}`)
+    // console.log(`change: ${JSON.stringify(change, null, 2)}`)
+
+    return { necessaryUtxos, change }
+  }
+
+  // Build the transaction for sending a TX with an OP_RETURN output.
+  // Note: SLP token UTXOs should not be sent to this function. They will be
+  // burned.
+  // An optional prefix is expected, as a hex string. If not provided, it will
+  // default to the memo.cash prefix for posting a 'tweet'.
+  //
+  // Other outputs can be added for sending BCH to. This can be useful for signaling.
+  // The bchOutput array should contain objects with a 'address' and 'amountSat'
+  // properties.
+  //
+  // The sats-per-byte can be increased from the default of 1, for times when
+  // the blockchain is congested and a fee market occurs.
+  async createTransaction (
+    walletInfo,
+    bchUtxos,
+    msg = '', // OP_RETURN data in utf8 string format.
+    prefix = '6d02', // Hex prefix. Replace with Lokad ID or memo.cash prefix.
+    bchOutput = [], // Array of objects with address and amountSat property
+    satsPerByte = 1.0
+  ) {
+    try {
+      // console.log('createTransaction() start tokenUtxos: ', tokenUtxos)
+
+      // If the BCH utxos array is still empty, then throw an error.
+      if (!bchUtxos || bchUtxos.length === 0) {
+        throw new Error('BCH UTXO list is empty')
+      }
+
+      // Generate the OP_RETURN data.
+      const script = [
+        this.bchjs.Script.opcodes.OP_RETURN,
+        Buffer.from(prefix, 'hex'),
+        Buffer.from(msg)
+      ]
+      const data = this.bchjs.Script.encode2(script)
+      // console.log('data.length: ', data.length)
+
+      // Generate the BCH output object.
+      // const bchOutput = [
+      //   {
+      //     address: walletInfo.cashAddress,
+      //     amountSat: 550 // dust
+      //   }
+      // ]
+
+      // Determine the UTXOs needed to be spent for this TX, and the change
+      // that will be returned to the wallet.
+      const { necessaryUtxos, change } = this.getNecessaryUtxosAndChange(
+        bchOutput,
+        bchUtxos,
+        data.length,
+        satsPerByte
+      )
+
+      // Create an instance of the Transaction Builder.
+      const transactionBuilder = new this.bchjs.TransactionBuilder()
+
+      // Add BCH inputs
+      necessaryUtxos.forEach(utxo => {
+        transactionBuilder.addInput(utxo.tx_hash, utxo.tx_pos)
+      })
+
+      // console.log('tokens.js tokenUtxos: ', tokenUtxos)
+
+      // Add the OP_RETURN as the second output of the transaction.
+      transactionBuilder.addOutput(data, 0)
+
+      // Send a 2000 sat donation to PSF to thank them for creating this awesome software.
+      // console.log(`psf: ${bchDonation('psf').donations}`)
+      transactionBuilder.addOutput(bchDonation('psf').donations, PSF_DONATION)
+
+      // Send change back to the wallet, if it's bigger than dust.
+      // console.log(`change: ${change}`)
+      // console.log(`walletInfo.cashAddress: ${walletInfo.cashAddress}`)
+      if (change && change > 546) {
+        transactionBuilder.addOutput(walletInfo.cashAddress, change)
+      }
+
+      // Add any additional outputs specified by the user.
+      for (let i = 0; i < bchOutput.length; i++) {
+        const thisOutput = bchOutput[i]
+        transactionBuilder.addOutput(thisOutput.address, thisOutput.amountSat)
+      }
+
+      // Generate a key pair from the mnemonic.
+      const keyPair = await this.sendBch.getKeyPairFromMnemonic(walletInfo)
+
+      // Sign each UTXO that is about to be spent.
+      necessaryUtxos.forEach((utxo, i) => {
+        let redeemScript
+
+        transactionBuilder.sign(
+          i,
+          keyPair,
+          redeemScript,
+          transactionBuilder.hashTypes.SIGHASH_ALL,
+          utxo.value
+        )
+      })
+
+      // Build the transaction, return the compiled transaction in hex format.
+      const tx = transactionBuilder.build()
+      return { hex: tx.toHex(), txid: tx.getId() }
+    } catch (err) {
+      console.error('Error in op-return.js/createTransaction()')
+      throw err
+    }
+  }
+
+  // Generate and broadcast a TX with an OP_RETURN output. Returns the TXID
+  // of the transaction.
+  async sendOpReturn (
+    wallet,
+    bchUtxos,
+    msg = '',
+    prefix = '6d02', // Default to memo.cash
+    bchOutput = [],
+    satsPerByte = 1.0
+  ) {
+    const { hex } = await this.createTransaction(
+      wallet,
+      bchUtxos,
+      msg,
+      prefix,
+      bchOutput,
+      satsPerByte
+    )
+
+    // Broadcast the transaction to the network.
+    const txid = await this.ar.sendTx(hex)
+
+    return txid
+  }
+}
+
+module.exports = OpReturn
+
+```
+
+`/home/trout/work/psf/code/minimal-slp-wallet/LICENSE.md`:
+
+```md
+The MIT License (MIT)
+Copyright (c) 2021-2022 Chris Troutner <chris.troutner@gmail.com>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+```
+
+`/home/trout/work/psf/code/minimal-slp-wallet/examples/burn-all-tokens.js`:
+
+```js
+/*
+  An example for burning tokens with this library.
+*/
+
+const SlpWallet = require('../index')
+
+async function burnTokens () {
+  try {
+    // Replace the values for the constants below to customize for your use.
+    const MNEMONIC =
+      'essence appear intact casino neck scatter search post cube fit door margin'
+    // bitcoincash:qzl40sfyyqlmgc44y6rqjsarpyr3j9alnqyuqcwjc5
+    const TOKENID =
+      '6201f3efe486c577433622817b99645e1d473cd3882378f9a0efc128ab839a82'
+
+    // Instantiate the wallet library.
+    const slpWallet = new SlpWallet(MNEMONIC)
+
+    // Wait for the wallet to be created.
+    await slpWallet.walletInfoPromise
+
+    console.log(`wallet info: ${JSON.stringify(slpWallet.walletInfo, null, 2)}`)
+
+    // console.log('slpWallet.utxos.utxoStore: ', slpWallet.utxos.utxoStore)
+
+    // Get the balance of the wallet.
+    const balance = await slpWallet.getBalance()
+    console.log(`balance: ${balance} satoshis`)
+
+    // Exit if the wallet has no balance.
+    if (balance === 0) {
+      console.log(
+        `The balance of your wallet is zero. Send BCH to ${
+          slpWallet.walletInfo.address
+        } to run this example.`
+      )
+      return
+    }
+
+    const txid = await slpWallet.burnAll(TOKENID)
+
+    console.log(`Success! Tokens burnt with TXID: ${txid}`)
+  } catch (err) {
+    console.error('Error: ', err)
+  }
+}
+burnTokens()
+
+```
+
+`/home/trout/work/psf/code/minimal-slp-wallet/examples/send-bch.js`:
+
+```js
+/*
+  An example for sending BCH with this library.
+*/
+
+const SlpWallet = require('../index')
+
+async function sendBch () {
+  try {
+    // Replace the values for the constants below to customize for your use.
+    const MNEMONIC =
+      'essence appear intact casino neck scatter search post cube fit door margin'
+    const RECIEVER = ''
+    const SATS_TO_SEND = 1000
+
+    // Instantiate the wallet library.
+    const slpWallet = new SlpWallet(MNEMONIC)
+
+    // Wait for the wallet to be created.
+    await slpWallet.walletInfoPromise
+
+    // Get the balance of the wallet.
+    const balance = await slpWallet.getBalance()
+    console.log(`balance: ${balance} satoshis`)
+
+    // Exit if the wallet has no balance.
+    if (balance === 0) {
+      console.log(
+        `The balance of your wallet is zero. Send BCH to ${
+          slpWallet.walletInfo.address
+        } to run this example.`
+      )
+      return
+    }
+
+    // Create the outputs array.
+    const outputs = []
+
+    // If reciever is not specified, send the funds back to the wallet.
+    if (RECIEVER === '') {
+      outputs.push({
+        address: slpWallet.walletInfo.address,
+        amountSat: SATS_TO_SEND
+      })
+    //
+    // Send the funds to the reciever.
+    } else {
+      outputs.push({
+        address: RECIEVER,
+        amountSat: SATS_TO_SEND
+      })
+    }
+
+    const txid = await slpWallet.send(outputs)
+
+    console.log(`Success! BCH sent with TXID: ${txid}`)
+  } catch (err) {
+    console.error('Error: ', err)
+  }
+}
+sendBch()
+
+```
+
+`/home/trout/work/psf/code/minimal-slp-wallet/examples/list-tokens.js`:
+
+```js
+/*
+  An example for listing the tokens and token balances of the wallet. a
+*/
+
+const SlpWallet = require('../index')
+
+async function listTokens () {
+  try {
+    // Replace the values for the constants below to customize for your use.
+    const MNEMONIC =
+      'essence appear intact casino neck scatter search post cube fit door margin'
+
+    // Instantiate the wallet library.
+    const slpWallet = new SlpWallet(MNEMONIC)
+
+    // Wait for the wallet to be created.
+    await slpWallet.walletInfoPromise
+
+    // Get the token summary
+    const tokenInfo = await slpWallet.listTokens()
+    console.log(`tokenInfo: ${JSON.stringify(tokenInfo, null, 2)}`)
+  } catch (err) {
+    console.error('Error: ', err)
+  }
+}
+listTokens()
+
+```
+
+`/home/trout/work/psf/code/minimal-slp-wallet/examples/validate-utxo.js`:
+
+```js
+/*
+  An example for checking if a UTXO is still valid and spendable.
+*/
+
+const SlpWallet = require('../index')
+
+async function validateUtxo () {
+  try {
+    const utxo = {
+      txid: 'b94e1ff82eb5781f98296f0af2488ff06202f12ee92b0175963b8dba688d1b40',
+      vout: 0
+    }
+
+    // Instantiate the wallet library.
+    const slpWallet = new SlpWallet(undefined, { interface: 'consumer-api' })
+
+    // Wait for the wallet to be created.
+    await slpWallet.walletInfoPromise
+
+    // Get the token summary
+    const isValid = await slpWallet.utxoIsValid(utxo)
+    console.log(`UTXO is valid: ${isValid}`)
+  } catch (err) {
+    console.error('Error: ', err)
+  }
+}
+validateUtxo()
+
+```
+
+`/home/trout/work/psf/code/minimal-slp-wallet/examples/get-token-data.js`:
+
+```js
+/*
+  An example for getting data on an SLP token. This example token includes
+  mutable and immutable data.
+*/
+
+const SlpWallet = require('../index')
+
+async function getTokenDataExample () {
+  try {
+    const tokenId = '59a62f35b0882b7c0ed80407d9190b460cc566cb6c01ed4817ad64f9d2508702'
+
+    // Instantiate the wallet library.
+    const slpWallet = new SlpWallet(undefined, { interface: 'consumer-api' })
+
+    // Wait for the wallet to be created.
+    await slpWallet.walletInfoPromise
+
+    // Get token data
+    const tokenData = await slpWallet.getTokenData(tokenId)
+    console.log(`tokenData: ${JSON.stringify(tokenData, null, 2)}`)
+  } catch (err) {
+    console.error('Error: ', err)
+  }
+}
+getTokenDataExample()
+
+```
+
+`/home/trout/work/psf/code/minimal-slp-wallet/examples/send-tokens.js`:
+
+```js
+/*
+  An example for sending tokens with this library.
+*/
+
+const SlpWallet = require('../index')
+
+async function sendTokens () {
+  try {
+    // Replace the values for the constants below to customize for your use.
+    const MNEMONIC =
+      'essence appear intact casino neck scatter search post cube fit door margin'
+    const RECIEVER = ''
+    const TOKENID =
+      '82e3d97b3cd033e60ffa755450b9075cf44fe1b2f6d5dc13657d8263e716b6a5'
+    const TOKENS_TO_SEND = 1
+
+    // Instantiate the wallet library.
+    const slpWallet = new SlpWallet(MNEMONIC)
+
+    // Wait for the wallet to be created.
+    await slpWallet.walletInfoPromise
+
+    // console.log('slpWallet.utxos.utxoStore: ', slpWallet.utxos.utxoStore)
+
+    // Get the balance of the wallet.
+    const balance = await slpWallet.getBalance()
+    console.log(`balance: ${balance} satoshis`)
+
+    // Exit if the wallet has no balance.
+    if (balance === 0) {
+      console.log(
+        `The balance of your wallet is zero. Send BCH to ${
+          slpWallet.walletInfo.address
+        } to run this example.`
+      )
+      return
+    }
+
+    // Create the outputs array.
+    let output = {}
+
+    // If reciever is not specified, send the funds back to the wallet.
+    if (RECIEVER === '') {
+      output = {
+        address: slpWallet.walletInfo.address,
+        tokenId: TOKENID,
+        qty: TOKENS_TO_SEND
+      }
+      //
+      // Send the funds to the reciever.
+    } else {
+      output = {
+        address: RECIEVER,
+        tokenId: TOKENID,
+        qty: TOKENS_TO_SEND
+      }
+    }
+
+    const txid = await slpWallet.sendTokens(output)
+
+    console.log(`Success! Tokens sent with TXID: ${txid}`)
+  } catch (err) {
+    console.error('Error: ', err)
+  }
+}
+sendTokens()
+
+```
+
+`/home/trout/work/psf/code/minimal-slp-wallet/examples/create-wallet.js`:
+
+```js
+/*
+  An example app for creating a wallet using this library.
+*/
+
+const BchWallet = require('../index')
+
+async function createWallet () {
+  try {
+    // Instantiate the wallet library.
+    const bchWallet = new BchWallet()
+
+    // Wait for the wallet to be created.
+    await bchWallet.walletInfoPromise
+
+    // Print out the wallet information.
+    console.log(
+      `Wallet information: ${JSON.stringify(bchWallet.walletInfo, null, 2)}`
+    )
+  } catch (err) {
+    console.error('Error: ', err)
+  }
+}
+createWallet()
+
+```
+
+`/home/trout/work/psf/code/minimal-slp-wallet/examples/burn-some-tokens.js`:
+
+```js
+/*
+  An example for burning tokens with this library.
+*/
+
+const SlpWallet = require('../index')
+
+async function burnTokens () {
+  try {
+    // Replace the values for the constants below to customize for your use.
+    const MNEMONIC =
+      'essence appear intact casino neck scatter search post cube fit door margin'
+    // bitcoincash:qzl40sfyyqlmgc44y6rqjsarpyr3j9alnqyuqcwjc5
+    const TOKENID =
+      '6201f3efe486c577433622817b99645e1d473cd3882378f9a0efc128ab839a82'
+    const TOKENS_TO_BURN = 0.1
+
+    // Instantiate the wallet library.
+    const slpWallet = new SlpWallet(MNEMONIC)
+
+    // Wait for the wallet to be created.
+    await slpWallet.walletInfoPromise
+
+    console.log(`wallet info: ${JSON.stringify(slpWallet.walletInfo, null, 2)}`)
+
+    // console.log('slpWallet.utxos.utxoStore: ', slpWallet.utxos.utxoStore)
+
+    // Get the balance of the wallet.
+    const balance = await slpWallet.getBalance()
+    console.log(`balance: ${balance} satoshis`)
+
+    // Exit if the wallet has no balance.
+    if (balance === 0) {
+      console.log(
+        `The balance of your wallet is zero. Send BCH to ${
+          slpWallet.walletInfo.address
+        } to run this example.`
+      )
+      return
+    }
+
+    const txid = await slpWallet.burnTokens(TOKENS_TO_BURN, TOKENID)
+
+    console.log(`Success! Tokens burnt with TXID: ${txid}`)
+  } catch (err) {
+    console.error('Error: ', err)
+  }
+}
+burnTokens()
+
+```
+
+`/home/trout/work/psf/code/minimal-slp-wallet/package.json`:
+
+```json
+{
+  "name": "minimal-slp-wallet",
+  "version": "5.0.0",
+  "description": "A minimalist Bitcoin Cash (BCH) wallet npm library, for use in a web apps.",
+  "main": "./index.js",
+  "module": "./dist/minimal-slp-wallet.min.js",
+  "scripts": {
+    "start": "node index.js",
+    "test": "TEST=unit nyc mocha test/unit/",
+    "test:integration": "mocha --timeout 35000 test/integration/",
+    "test:temp": "mocha --timeout 25000 -g '#UTXOs' test/integration/",
+    "lint": "standard --env mocha --fix",
+    "docs": "./node_modules/.bin/apidoc -i lib/ -o docs",
+    "coverage": "nyc report --reporter=text-lcov | coveralls",
+    "coverage:report": "nyc --reporter=html mocha test/unit/ --exit",
+    "build": "browserify index.js -p tinyify --s SlpWallet -o dist/minimal-slp-wallet.min.js"
+  },
+  "keywords": [
+    "bitcoin",
+    "bitcoin cash",
+    "wallet",
+    "javascript",
+    "cryptocurrency",
+    "react",
+    "front end",
+    "client",
+    "apidoc",
+    "slp",
+    "tokens"
+  ],
+  "author": "Chris Troutner <chris.troutner@gmail.com>",
+  "license": "MIT",
+  "apidoc": {
+    "title": "minimal-slp-wallet",
+    "url": "localhost:5000"
+  },
+  "repository": "Permissionless-Software-Foundation/minimal-slp-wallet",
+  "dependencies": {
+    "@chris.troutner/retry-queue-commonjs": "1.0.8",
+    "@psf/bch-js": "6.8.0",
+    "apidoc": "0.51.0",
+    "bch-consumer": "1.6.2",
+    "bch-donation": "1.1.2",
+    "crypto-js": "4.0.0"
+  },
+  "devDependencies": {
+    "browserify": "17.0.0",
+    "chai": "4.2.0",
+    "coveralls": "3.1.0",
+    "eslint": "7.17.0",
+    "eslint-config-prettier": "7.1.0",
+    "eslint-config-standard": "16.0.2",
+    "eslint-plugin-node": "11.1.0",
+    "eslint-plugin-prettier": "3.3.1",
+    "eslint-plugin-standard": "4.0.1",
+    "husky": "4.3.8",
+    "lodash.clonedeep": "4.5.0",
+    "mocha": "9.2.1",
+    "nyc": "15.1.0",
+    "semantic-release": "19.0.3",
+    "sinon": "9.2.0",
+    "standard": "16.0.4",
+    "tinyify": "3.0.0"
+  },
+  "release": {
+    "publish": [
+      {
+        "path": "@semantic-release/npm",
+        "npmPublish": true
+      }
+    ]
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "npm run lint && npm run build"
+    }
+  },
+  "exports": {
+    ".": {
+      "import": {
+        "browser": "./dist/minimal-slp-wallet.min.js",
+        "node": "./index.js",
+        "default": "./index.js"
+      },
+      "require": {
+        "default": "./index.js"
+      }
+    }
+  }
+}
+
+```
