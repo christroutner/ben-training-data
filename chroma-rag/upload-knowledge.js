@@ -43,7 +43,7 @@ const directoriesToIngest = [
   '../knowledge/shared/code/minimal-slp-wallet/gemini-blog/',
   '../knowledge/shared/code/psf-js-examples/bch-js/wallet',
   '../knowledge/shared/code/psf-js-examples/bch-js/slp',
-  '../knowledge/shared/code/psf-js-examples/bch-js/slp/nft',
+  '../knowledge/shared/code/psf-js-examples/bch-js/nft',
   '../knowledge/shared/code/psf-js-examples/minimal-slp-wallet',
 ]
 
@@ -84,6 +84,7 @@ async function uploadKnowledgeToAgent(inObj = {}) {
     for(let i=0; i < filesPathsForUpload.length; i++) {
     // for(let i=0; i < 3; i++) {
       const thisFilePath = filesPathsForUpload[i]
+      console.log(`Sending file: ${thisFilePath}`)
 
       const content = fs.readFileSync(thisFilePath, 'utf8')
       // console.log('content: ', content)
@@ -99,7 +100,7 @@ async function uploadKnowledgeToAgent(inObj = {}) {
     return true;
   } catch (error) {
     // Handle errors
-    console.error('Upload failed:', error.response?.data || error.message);
+    console.error('Upload failed:', error);
     throw error;
   }
 }
