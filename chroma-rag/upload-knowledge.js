@@ -39,7 +39,12 @@ const directoriesToIngest = [
   '../knowledge/shared/websites/mastering-bitcoin-cash/ch06-the-blockchain/',
   '../knowledge/shared/websites/mastering-bitcoin-cash/ch08-bitcoin-cash-security/',
   '../knowledge/shared/chat-logs/',
-  // '../knowledge/shared/code/bch-js/llm'
+  '../knowledge/shared/code/bch-js/gemini-blog/',
+  '../knowledge/shared/code/minimal-slp-wallet/gemini-blog/',
+  '../knowledge/shared/code/psf-js-examples/bch-js/wallet',
+  '../knowledge/shared/code/psf-js-examples/bch-js/slp',
+  '../knowledge/shared/code/psf-js-examples/bch-js/slp/nft',
+  '../knowledge/shared/code/psf-js-examples/minimal-slp-wallet',
 ]
 
 // Consume the directoriesToIngest array and return an array of file paths
