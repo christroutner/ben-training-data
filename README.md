@@ -7,6 +7,8 @@ The data is generated from collections of code, blog posts, documentation, etc.
 - Web page data is converted to Markdown, using [percollate](https://github.com/danburzo/percollate).
 - Large AI like [Gemini](https://gemini.google.com/) (with a large context window) is used to break down large documents into smaller markdown documents.
 
+## Contribution Guidelines
+
 All data should be formatted as a [Markdown](https://www.markdownguide.org/basic-syntax/) document. The ideal length is 2-3 paragraphs. Larger documents should be pre-processed by using [these prompts](./knowledge/shared/websites/prompts.md) to break them down.
 
 **Please contribute additional data on the subjects of Bitcoin Cash and JavaScript to make the bot more helpful!**
