@@ -4,7 +4,7 @@ This repository contains raw data for uploading to a RAG database used by the te
 
 The data is generated from collections of code, blog posts, documentation, etc., and it's focused on the subjects of Bitcoin, Bitcoin Cash, JavaScript, and the [Cash Stack](https://cashstack.info).
 
-- Code is converted by using [code2prompt](https://github.com/mufeedvh/code2prompt).
+- Code is converted to Markdown by using [code2prompt](https://github.com/mufeedvh/code2prompt).
 - Web page data is converted to Markdown, using [percollate](https://github.com/danburzo/percollate).
 - Large AI like [Gemini](https://gemini.google.com/) (with a large context window) is used to break down large documents into smaller markdown documents.
 
