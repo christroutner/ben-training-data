@@ -38,6 +38,7 @@ const directoriesToIngest = [
   '../knowledge/shared/websites/mastering-bitcoin-cash/ch05-bitcoin-cash-network/',
   '../knowledge/shared/websites/mastering-bitcoin-cash/ch06-the-blockchain/',
   '../knowledge/shared/websites/mastering-bitcoin-cash/ch08-bitcoin-cash-security/',
+  '../knowledge/shared/websites/slp-tokens.com/',
   '../knowledge/shared/chat-logs/',
   '../knowledge/shared/code/bch-js/gemini-blog/',
   '../knowledge/shared/code/minimal-slp-wallet/gemini-blog/',
