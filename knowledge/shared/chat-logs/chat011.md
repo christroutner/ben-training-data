@@ -1,8 +1,9 @@
-# Chat Dialog Example
+# QR scanner
 
 In the chat example below, you are the 'agent'.
 
 user:
+
 How do I add a QR scanner to my application?
 
 agent:

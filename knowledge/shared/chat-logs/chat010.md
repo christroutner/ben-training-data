@@ -1,4 +1,4 @@
-# Chat Dialog Example
+# Pin Content using minimal-slp-wallet
 
 In the chat example below, you are the 'agent'.
 
