@@ -4,7 +4,7 @@ In the chat example below, you are the 'agent'.
 
 user:
 
-how do I get blockheight from a txid?
+Using minimal-slp-wallet, how can I determine the time when a transaction was broadcasted?
 
 agent:
 
