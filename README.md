@@ -17,8 +17,9 @@ All data should be formatted as a [Markdown](https://www.markdownguide.org/basic
 ## Directory Structure
 
 - Raw data is contained in the [knowledge/shared](./knowledge/shared) directory.
-- Code for uploading data to the [Chroma RAG database](https://github.com/christroutner/chroma-rag) is in the [chroma-rag](./chroma-rag) directory.
-- The `eliza-v0.5` and `elize-v1.0` directories are early prototypes. They are no longer used.
+- The `old` directory contains the following old code:
+  - Code for uploading data to the [Chroma RAG database](https://github.com/christroutner/chroma-rag) is in the [chroma-rag](./chroma-rag) directory. This was for v1.1.0 of [ben-ai-v3](https://github.com/christroutner/ben-ai-v3)
+  - The `eliza-v0.5` and `elize-v1.0` directories are early prototypes. They are no longer used. They were for versions prior to v1 of ben-ai-v3.
 
 ## License
 [MIT](./LICENSE.md)
