@@ -1,0 +1,14 @@
+{
+  "name": "upload-knowledge.js",
+  "version": "1.0.0",
+  "description": "This directory contains a node.js script for uploading the raw knowledge documents to a [LightRAG](https://github.com/christroutner/LightRAG) database using the LightRAG API.",
+  "main": "upload-knowledge.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "1.12.2"
+  }
+}

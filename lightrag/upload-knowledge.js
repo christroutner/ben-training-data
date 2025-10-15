@@ -1,18 +1,22 @@
 /*
   Experimental script for uploading markdown files using the
-  POST /:agentId/memories/upload-knowledge endpoint.
+  POST /documents/text endpoint, to upload one document
+  at a time for processing by LightRAG.
+
+  It opens each text file, reads in the string content, and
+  uploads the string content to the LightRAG API.
 */
 
 // Public npm libraries
 import axios from 'axios'
-import FormData from 'form-data'
+// import FormData from 'form-data'
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 
 // Constants
-const CHROMA_URL = 'http://localhost:3000/upload'
+const LIGHTRAG_URL = 'http://localhost:9621'
 
 
 const __filename = fileURLToPath(import.meta.url);
@@ -48,6 +52,10 @@ const directoriesToIngest = [
   '../knowledge/shared/code/psf-js-examples/minimal-slp-wallet',
 ]
 
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 // Consume the directoriesToIngest array and return an array of file paths
 // representing all the files in all the directories.
 function getFilePaths() {
@@ -62,6 +70,7 @@ function getFilePaths() {
       // Loop through each file in the directory.
       files.forEach(file => {
         const filePath = path.join(directoryPath, file)
+        // console.log('file: ', file)
 
         // Generate a file path for each file.
         filePaths.push(filePath)
@@ -83,16 +92,40 @@ async function uploadKnowledgeToAgent(inObj = {}) {
 
     // Loop through each file path.
     for(let i=0; i < filesPathsForUpload.length; i++) {
-    // for(let i=0; i < 3; i++) {
+    // for(let i=7; i < 8; i++) {
       const thisFilePath = filesPathsForUpload[i]
-      console.log(`Sending file: ${thisFilePath}`)
+
+      let thisFileName = thisFilePath.split('/').pop()
+
+      console.log(`\nSending file ${thisFileName} to LightRAG for processing...`)
 
       const content = fs.readFileSync(thisFilePath, 'utf8')
       // console.log('content: ', content)
 
-      await axios.post(CHROMA_URL, { content })
-      // const data = response.data
+      const response = await axios.post(`${LIGHTRAG_URL}/documents/text`, { 
+        text: content,
+        file_source: thisFilePath
+       })
+      const data = response.data
       // console.log('data: ', data)
+
+      const trackId = data.track_id
+      // console.log('trackId: ', trackId)
+
+      for(let j=0; j < 10; j++) {
+        await sleep(5000)
+
+        const url = `${LIGHTRAG_URL}/documents/track_status/${trackId}`
+        // console.log('url: ', url)
+
+        const trackStatusResponse = await axios.get(url)
+        const trackStatusData = trackStatusResponse.data
+        // console.log('trackStatusData.documents[0].status: ', trackStatusData.documents[0].status)
+        if(trackStatusData.documents[0].status === 'processed') {
+          break
+        }
+        console.log(`...waiting for ${thisFileName} to be processed...`)
+      }
     }
 
     // Handle successful response
@@ -115,7 +148,7 @@ async function main() {
   // ];
 
   const filesPathsForUpload = getFilePaths()
-  console.log('filesPathsForUpload', filesPathsForUpload)
+  // console.log('filesPathsForUpload', filesPathsForUpload)
 
   try {
     const result = await uploadKnowledgeToAgent({filesPathsForUpload});
