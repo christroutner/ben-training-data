@@ -17,6 +17,8 @@ All data should be formatted as a [Markdown](https://www.markdownguide.org/basic
 ## Directory Structure
 
 - Raw data is contained in the [knowledge/shared](./knowledge/shared) directory.
+- A docker container for running LightRAG is located in the [lightrag/docker](./lightrag/docker) folder.
+- A JavaScript program for uploading the raw knowledge to LightRAG is in [lightrag/upload-knowledge.js](./lightrag/upload-knowledge.js) script.
 - The `old` directory contains the following old code:
   - Code for uploading data to the [Chroma RAG database](https://github.com/christroutner/chroma-rag) is in the [chroma-rag](./chroma-rag) directory. This was for v1.1.0 of [ben-ai-v3](https://github.com/christroutner/ben-ai-v3)
   - The `eliza-v0.5` and `elize-v1.0` directories are early prototypes. They are no longer used. They were for versions prior to v1 of ben-ai-v3.
